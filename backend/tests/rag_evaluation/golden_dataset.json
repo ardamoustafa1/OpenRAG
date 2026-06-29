@@ -1,0 +1,23 @@
+[
+  {
+    "question": "What is the policy regarding remote work?",
+    "expected_answer": "Employees are allowed to work remotely for up to 3 days a week, provided they get approval from their manager.",
+    "context_sources": [
+      "HR_Policy_2024.pdf"
+    ]
+  },
+  {
+    "question": "Who is the CEO of the company?",
+    "expected_answer": "John Doe is the CEO of the company.",
+    "context_sources": [
+      "Company_Overview.docx"
+    ]
+  },
+  {
+    "question": "What is the maximum file size for document ingestion?",
+    "expected_answer": "The maximum file size for document ingestion is 100MB.",
+    "context_sources": [
+      "Technical_Specs.md"
+    ]
+  }
+]

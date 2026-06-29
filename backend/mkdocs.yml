@@ -1,0 +1,36 @@
+site_name: Enterprise AI Platform
+site_description: SRE, Operations, and Onboarding Documentation
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Developer Onboarding: 'developer/getting_started.md'
+  - Customer Onboarding: 'customer/onboarding_guide.md'
+  - SRE & Operations:
+    - Operational Runbook: 'operations/runbook.md'
+    - Disaster Recovery: 'operations/disaster_recovery.md'
+    - Capacity Planning: 'operations/capacity_planning.md'
+    - SLOs & Error Budgets: 'operations/slo.md'
+    - Cost Optimization: 'operations/cost_optimization.md'
+
+plugins:
+  - search
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences

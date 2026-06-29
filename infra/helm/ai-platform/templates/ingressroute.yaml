@@ -1,0 +1,37 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "ai-platform.fullname" . }}-frontend
+  namespace: {{ .Release.Namespace }}
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    # Route: {tenant}.platform.example.com -> Frontend
+    - match: HostRegexp(`{subdomain:[a-z0-9-]+}.{{ .Values.ingress.hosts.frontend }}`) && !PathPrefix(`/api`)
+      kind: Rule
+      services:
+        - name: {{ include "ai-platform.fullname" . }}-frontend
+          port: 3000
+    # Route: {tenant}.platform.example.com/api -> Backend
+    - match: HostRegexp(`{subdomain:[a-z0-9-]+}.{{ .Values.ingress.hosts.frontend }}`) && PathPrefix(`/api`)
+      kind: Rule
+      middlewares:
+        - name: {{ include "ai-platform.fullname" . }}-rate-limit
+      services:
+        - name: {{ include "ai-platform.fullname" . }}-backend
+          port: 8000
+  tls:
+    secretName: {{ .Values.ingress.tls.secretName }}
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ include "ai-platform.fullname" . }}-rate-limit
+spec:
+  rateLimit:
+    average: 100
+    burst: 50
+{{- end }}

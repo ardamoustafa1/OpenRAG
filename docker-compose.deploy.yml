@@ -1,0 +1,16 @@
+# ============================================================
+# One-Click Deploy Override
+# Use this file to run the pre-built GHCR images instead of 
+# building them locally from source.
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.deploy.yml up -d
+# ============================================================
+
+services:
+  backend:
+    build: null
+    image: ghcr.io/your-org/enterprise-rag-api:latest
+
+  frontend:
+    build: null
+    image: ghcr.io/your-org/enterprise-rag-frontend:latest

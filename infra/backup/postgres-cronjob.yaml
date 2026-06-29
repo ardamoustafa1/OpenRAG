@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: rag-platform
+spec:
+  schedule: "0 2 * * *" # Run at 2:00 AM every day
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: pg-dump
+            image: postgres:16-alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              pg_dump -h postgres -U postgres -d rag_db -F c -f /backup/db_$TIMESTAMP.dump
+              # Here you would typically add an AWS CLI command to sync /backup to S3/MinIO
+              # e.g., aws s3 cp /backup/db_$TIMESTAMP.dump s3://db-backups/
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: enterprise-rag-api-secrets
+                  key: POSTGRES_PASSWORD
+            volumeMounts:
+            - name: backup-volume
+              mountPath: /backup
+          restartPolicy: OnFailure
+          volumes:
+          - name: backup-volume
+            persistentVolumeClaim:
+              claimName: backup-pvc

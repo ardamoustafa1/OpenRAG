@@ -1,0 +1,16 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-ai-platform-backup
+  namespace: velero
+spec:
+  schedule: "0 2 * * *" # Every day at 2:00 AM
+  template:
+    includedNamespaces:
+      - ai-platform
+    includeClusterResources: true
+    snapshotVolumes: true
+    ttl: 720h # 30 days retention
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/instance: ai-platform

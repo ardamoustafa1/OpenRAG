@@ -1,0 +1,95 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+          pip install bandit safety pip-audit testcontainers[postgres,redis]
+        working-directory: ./backend
+
+      - name: Linting with Ruff
+        run: ruff check .
+        working-directory: ./backend
+
+      - name: Type checking with Mypy
+        run: mypy app/
+        working-directory: ./backend
+
+      - name: Unit Tests with Coverage
+        run: pytest tests/unit/ -n auto --cov=app --cov-report=xml --cov-report=term-missing
+        working-directory: ./backend
+
+      - name: Security Scan (Bandit)
+        run: bandit -r app/ -ll
+        working-directory: ./backend
+
+      - name: Dependency Audit (pip-audit)
+        run: pip-audit
+        working-directory: ./backend
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Frontend ESLint
+        run: npm run lint
+        working-directory: ./frontend
+
+      - name: Frontend Type Check
+        run: npx tsc --noEmit
+        working-directory: ./frontend
+
+      - name: Frontend Dependency Audit
+        run: npm audit --audit-level=high
+        working-directory: ./frontend
+
+      - name: Build Backend Docker Image (Dry-run)
+        run: docker build -t ai-backend:test ./backend
+
+      - name: Scan Backend Image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ai-backend:test'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Build Frontend Docker Image (Dry-run)
+        run: docker build -t ai-frontend:test ./frontend
+
+      - name: Scan Frontend Image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ai-frontend:test'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'

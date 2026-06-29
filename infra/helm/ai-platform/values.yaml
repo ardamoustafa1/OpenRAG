@@ -1,0 +1,164 @@
+global:
+  imageRegistry: "ghcr.io/your-org"
+  storageClass: "standard" # Overridden in on-premise environments
+  ingressClass: "traefik"
+
+backend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: ai-backend
+    tag: "latest"
+  resources:
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - ai-backend
+          topologyKey: kubernetes.io/hostname
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: ai-backend
+
+frontend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: ai-frontend
+    tag: "latest"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
+celery:
+  enabled: true
+  worker:
+    replicaCount: 3
+    resources:
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+  beat:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+
+# GPU Nodes for Local LLMs
+ollama:
+  enabled: false # Use vLLM for prod, Ollama for lighter tasks
+  gpuNodeSelector:
+    accelerator: nvidia-gpu
+  resources:
+    requests:
+      cpu: "4"
+      memory: "16Gi"
+    limits:
+      nvidia.com/gpu: "1"
+
+vllm:
+  enabled: true
+  model: "Qwen/Qwen2.5-72B-Instruct-AWQ"
+  quantization: "awq"
+  tensorParallelSize: 2
+  gpuNodeSelector:
+    accelerator: nvidia-gpu
+  resources:
+    requests:
+      cpu: "8"
+      memory: "32Gi"
+    limits:
+      nvidia.com/gpu: "2"
+
+# Subcharts
+postgresql:
+  enabled: true
+  auth:
+    username: "platform_user"
+    database: "ai_platform"
+  primary:
+    persistence:
+      enabled: true
+      size: "100Gi"
+    resources:
+      requests:
+        cpu: "2"
+        memory: "4Gi"
+
+redis:
+  enabled: true
+  architecture: "standalone"
+  master:
+    persistence:
+      enabled: true
+      size: "10Gi"
+    resources:
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+
+qdrant:
+  enabled: true
+  replicaCount: 3
+  persistence:
+    enabled: true
+    size: "50Gi"
+  resources:
+    requests:
+      cpu: "2"
+      memory: "8Gi"
+
+minio:
+  enabled: true
+  mode: "standalone" # distributed requires RWX PVCs
+  auth:
+    rootUser: "admin"
+  persistence:
+    enabled: true
+    size: "500Gi"
+  resources:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+
+ingress:
+  enabled: true
+  className: "traefik"
+  tls:
+    enabled: true
+    secretName: "platform-tls-secret"
+  hosts:
+    backend: "api.platform.example.com"
+    frontend: "platform.example.com"
+    tenantWildcard: "*.platform.example.com"
+
+monitoring:
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true

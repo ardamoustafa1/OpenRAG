@@ -1,0 +1,78 @@
+name: Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}/backend
+            ghcr.io/${{ github.repository }}/frontend
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Build and push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ghcr.io/${{ github.repository }}/backend:${{ github.ref_name }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Build and push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ghcr.io/${{ github.repository }}/frontend:${{ github.ref_name }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Package Helm Chart
+        run: |
+          mkdir -p infra/helm/ai-platform
+          helm package infra/helm/ai-platform || echo "Helm packaging skipped (no chart found)"
+          
+      - name: Create On-Premise Archive
+        run: |
+          mkdir -p onpremise-package
+          # Only copy if it exists to avoid errors
+          [ -d infra/onpremise ] && cp -r infra/onpremise/* onpremise-package/ || echo "No onpremise files to copy"
+          zip -r ai-platform-onprem-${{ github.ref_name }}.zip onpremise-package/
+          sha256sum ai-platform-onprem-${{ github.ref_name }}.zip > checksum.txt
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ai-platform-onprem-${{ github.ref_name }}.zip
+            checksum.txt
+          generate_release_notes: true

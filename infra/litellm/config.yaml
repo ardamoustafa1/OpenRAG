@@ -1,0 +1,87 @@
+model_list:
+  # Primary Model (Ollama)
+  - model_name: llama3.3-70b
+    litellm_params:
+      model: ollama/llama3.3
+      api_base: "http://ollama:11434"
+      max_tokens: 4096
+      timeout: 120
+    model_info:
+      id: llama3.3-70b
+      mode: chat
+      input_cost_per_token: 0.0000001
+      output_cost_per_token: 0.0000005
+
+  # Primary Turkish Model (vLLM)
+  - model_name: qwen2.5-72b
+    litellm_params:
+      model: openai/Qwen2.5-72B-Instruct
+      api_base: "http://vllm:8000/v1"
+      max_tokens: 4096
+      timeout: 120
+    model_info:
+      id: qwen2.5-72b
+      mode: chat
+      input_cost_per_token: 0.0000001
+      output_cost_per_token: 0.0000005
+
+  # Fallback & Lightweight Model (Ollama)
+  - model_name: phi-4-mini
+    litellm_params:
+      model: ollama/phi-4
+      api_base: "http://ollama:11434"
+      max_tokens: 2048
+      timeout: 60
+    model_info:
+      id: phi-4-mini
+      mode: chat
+      input_cost_per_token: 0.00000005
+      output_cost_per_token: 0.0000001
+
+  # Coding & Technical (vLLM or Ollama)
+  - model_name: deepseek-coder-v2
+    litellm_params:
+      model: ollama/deepseek-coder-v2
+      api_base: "http://ollama:11434"
+      max_tokens: 8192
+      timeout: 300
+    model_info:
+      id: deepseek-coder-v2
+      mode: chat
+
+  # Embeddings (Ollama)
+  - model_name: nomic-embed-text
+    litellm_params:
+      model: ollama/nomic-embed-text
+      api_base: "http://ollama:11434"
+    model_info:
+      id: nomic-embed-text
+      mode: embedding
+
+  - model_name: bge-m3
+    litellm_params:
+      model: ollama/bge-m3
+      api_base: "http://ollama:11434"
+    model_info:
+      id: bge-m3
+      mode: embedding
+
+router_settings:
+  routing_strategy: least-busy  # Route to the deployment with fewest active requests
+  num_retries: 3                # Retry up to 3 times before failing
+  fallbacks:
+    - {"qwen2.5-72b": ["llama3.3-70b", "phi-4-mini"]}
+    - {"llama3.3-70b": ["qwen2.5-72b", "phi-4-mini"]}
+
+litellm_settings:
+  # Redis Semantic Cache configuration
+  cache: true
+  cache_params:
+    type: redis-semantic
+    supported_models: ["llama3.3-70b", "qwen2.5-72b"]
+    # LiteLLM connects to Redis URL specified in env vars
+    similarity_threshold: 0.95
+  
+  # Langfuse tracing
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]

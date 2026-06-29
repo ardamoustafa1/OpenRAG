@@ -1,0 +1,56 @@
+groups:
+  - name: platform_alerts
+    rules:
+      - alert: HighAPIErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[2m])) / sum(rate(http_requests_total[2m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API Error rate is > 5%"
+          description: "High rate of HTTP 5xx errors across the API."
+
+      - alert: HighLLMLatency
+        expr: histogram_quantile(0.95, sum(rate(llm_latency_seconds_bucket[5m])) by (le)) > 30
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "LLM p95 Latency > 30s"
+          description: "LLM generation is responding slower than 30 seconds for 95% of requests."
+
+      - alert: CeleryQueueBackedUp
+        expr: celery_queue_depth > 100
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Celery Queue > 100"
+          description: "Document ingestion queue is severely backed up."
+
+      - alert: HighNoAnswerRate
+        expr: sum(rate(rag_no_answer_total[30m])) / sum(rate(llm_requests_total[30m])) > 0.30
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No Answer Rate > 30%"
+          description: "RAG is failing to find context for >30% of user queries."
+
+      - alert: HighGPUMemoryUsage
+        expr: gpu_memory_used_bytes / gpu_memory_total_bytes > 0.90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GPU Memory Usage > 90%"
+          description: "VRAM is almost exhausted."
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Target {{ $labels.instance }} has been unreachable for 1 minute."

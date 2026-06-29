@@ -1,0 +1,24 @@
+apiVersion: v2
+name: ai-platform
+description: Enterprise RAG AI Platform
+type: application
+version: 1.0.0
+appVersion: "1.0"
+
+dependencies:
+  - name: postgresql
+    version: 12.x.x
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: 18.x.x
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: qdrant
+    version: 0.7.x
+    repository: https://qdrant.github.io/qdrant-helm
+    condition: qdrant.enabled
+  - name: minio
+    version: 12.x.x
+    repository: https://charts.bitnami.com/bitnami
+    condition: minio.enabled

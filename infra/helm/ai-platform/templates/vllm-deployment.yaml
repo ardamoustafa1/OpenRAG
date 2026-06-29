@@ -1,0 +1,51 @@
+{{- if .Values.vllm.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ai-platform.fullname" . }}-vllm
+  labels:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vllm
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vllm
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.vllm.gpuNodeSelector | nindent 8 }}
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: vllm
+          image: "vllm/vllm-openai:latest"
+          command:
+            - "python3"
+            - "-m"
+            - "vllm.entrypoints.openai.api_server"
+            - "--model"
+            - "{{ .Values.vllm.model }}"
+            - "--quantization"
+            - "{{ .Values.vllm.quantization }}"
+            - "--tensor-parallel-size"
+            - "{{ .Values.vllm.tensorParallelSize }}"
+          ports:
+            - containerPort: 8000
+          resources:
+            {{- toYaml .Values.vllm.resources | nindent 12 }}
+          volumeMounts:
+            - name: model-weights
+              mountPath: /root/.cache/huggingface
+      volumes:
+        - name: model-weights
+          persistentVolumeClaim:
+            claimName: {{ include "ai-platform.fullname" . }}-vllm-pvc
+{{- end }}

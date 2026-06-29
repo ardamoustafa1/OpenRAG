@@ -1,0 +1,44 @@
+{
+  "title": "Enterprise RAG Metrics",
+  "uid": "rag-metrics-01",
+  "tags": ["rag", "fastapi"],
+  "timezone": "browser",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "title": "API Request Rate (5m)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[5m])) by (status)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "LLM Token Usage Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(llm_tokens_total[5m])) by (model, type)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Document Ingestion Queue Length",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "celery_queue_length{queue=\"celery\"}",
+          "refId": "C"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+groups:
+- name: rag_sla_rules
+  rules:
+  - record: job:request_error_rate5m
+    expr: |
+      sum by (job) (rate(http_requests_total{status=~"5.."}[5m]))
+      /
+      sum by (job) (rate(http_requests_total[5m]))
+  
+  - alert: SLA_Violation_High_Error_Rate
+    expr: job:request_error_rate5m > 0.001 # 99.9% uptime SLA (0.1% error budget)
+    for: 10m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High Error Rate on {{ $labels.job }}"
+      description: "Error rate is > 0.1% for 10 minutes. This threatens the 99.9% SLA."

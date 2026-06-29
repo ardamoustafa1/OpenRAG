@@ -1,0 +1,26 @@
+# Code Owners for Enterprise RAG AI Platform
+# These owners will be automatically requested for review on all PRs.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global fallback — core team reviews everything
+* @your-org/core-team
+
+# Backend Python
+/backend/ @your-org/backend-team
+/backend/app/security/ @your-org/security-team
+/backend/app/compliance/ @your-org/security-team
+
+# Frontend TypeScript/React
+/frontend/ @your-org/frontend-team
+
+# Infrastructure & DevOps
+/infra/ @your-org/devops-team
+/docker-compose.yml @your-org/devops-team
+/.github/workflows/ @your-org/devops-team
+
+# SDK
+/sdk/ @your-org/sdk-team
+
+# Security-sensitive files always need security team sign-off
+/.env.example @your-org/security-team
+/SECURITY.md @your-org/security-team

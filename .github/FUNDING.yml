@@ -1,0 +1,16 @@
+# These are supported funding model platforms
+
+# github: [username]          # GitHub Sponsors
+# patreon: patreoncreatorname # Patreon
+# open_collective: opencollectivename # Open Collective
+# ko_fi: kofiname             # Ko-fi
+# tidelift: "npm/package"     # Tidelift
+# community_bridge: project-name # Community Bridge
+# liberapay: name             # Liberapay
+# issuehunt: name             # IssueHunt
+# lfx_crowdfunding: project-name # LFX Crowdfunding
+# polar: name                 # Polar
+# buy_me_a_coffee: username   # Buy Me a Coffee
+# custom: ["https://example.com/sponsor"] # Custom URL
+
+github: [your-github-username]
