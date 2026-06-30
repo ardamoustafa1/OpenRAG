@@ -1,3 +1,19 @@
+"""
+Enterprise RAG AI Platform - Main Entrypoint
+============================================
+
+This module initializes the FastAPI application, configuring all core services,
+middlewares, and observability tools required for a production-grade, 
+on-premise RAG system.
+
+Key Features Bootstrapped Here:
+1. **OpenTelemetry Tracing**: Distributed tracing exported via OTLP.
+2. **Prometheus Metrics**: Automatic metrics exposed at `/metrics`.
+3. **Structured Logging**: Contextual, JSON-formatted logs via structlog.
+4. **Middlewares**: Security headers, CORS, Tenant isolation, Audit logging.
+5. **Rate Limiting**: IP-based rate limiting via SlowAPI.
+"""
+
 import uuid
 import time
 from contextlib import asynccontextmanager
@@ -57,9 +73,9 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
-    Lifespan events.
-    Startup: Initialize DB connections, Redis, etc.
-    Shutdown: Close connections cleanly.
+    Manages the lifecycle events of the FastAPI application.
+    - Startup: Initializes necessary external connections.
+    - Shutdown: Gracefully closes database and Redis connections.
     """
     logger.info("Starting up Enterprise RAG Platform...")
     yield
@@ -76,10 +92,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.error(f"Error during graceful shutdown: {e}")
 
 # Initialize FastAPI App
-# Disable OpenAPI docs in production
+# Note: OpenAPI docs are automatically disabled in production for security.
 app = FastAPI(
     title="Enterprise RAG AI Platform",
-    description="Multi-tenant, totally on-premise RAG platform API",
+    description="A highly secure, multi-tenant, 100% on-premise RAG platform API.",
     version="0.1.0",
     lifespan=lifespan,
     docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
@@ -88,7 +104,7 @@ app = FastAPI(
 )
 
 # OpenTelemetry Setup
-resource = Resource.create({"service.name": "enterprise-rag-api", "service.version": "0.1.0"})
+resource = Resource.create({"service.name": "OpenRAG-api", "service.version": "0.1.0"})
 trace.set_tracer_provider(TracerProvider(resource=resource))
 # Note: In production, the OTLP_ENDPOINT would be fetched from settings (e.g., http://otel-collector:4317)
 otlp_exporter = OTLPSpanExporter() 
@@ -106,7 +122,7 @@ app.add_middleware(TenantMiddleware)
 
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["localhost", "127.0.0.1", "api.localhost", "app.localhost"]
+    allowed_hosts=["*"] if settings.ENVIRONMENT == "development" else settings.ALLOWED_HOSTS
 )
 
 app.add_middleware(
