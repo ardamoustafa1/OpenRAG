@@ -28,12 +28,12 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We are committ
 1. **Fork** the repository on GitHub.
 2. **Clone** your fork locally:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/enterprise-rag.git
-   cd enterprise-rag
+   git clone https://github.com/ardamoustafa1/OpenRAG.git
+   cd OpenRAG
    ```
 3. Add the upstream remote:
    ```bash
-   git remote add upstream https://github.com/your-org/enterprise-rag.git
+   git remote add upstream https://github.com/ardamoustafa1/OpenRAG.git
    ```
 
 ---
@@ -103,6 +103,17 @@ We follow **GitHub Flow**:
 - `fix/qdrant-healthcheck-timeout`
 - `docs/deployment-guide`
 
+### Required Branch Protection Rules (`main`)
+Repository administrators must ensure the following branch protection rules are active for the `main` branch:
+1. **Require a pull request before merging:** All commits must be made to a non-protected branch and submitted via PR.
+2. **Require approvals:** At least 1 approving review from a `CODEOWNER` is required.
+3. **Require status checks to pass before merging:** 
+   - `lint-and-test` (Backend Pytest, Mypy, Ruff, Bandit, Trivy)
+   - `integration-test`
+   - `frontend-test` (Next.js ESLint, TSC, Jest)
+4. **Require conversation resolution before merging.**
+5. **Do not allow bypassing the above settings.**
+
 ---
 
 ## Commit Messages
@@ -164,7 +175,7 @@ instead of base64-encoded JSON body.
 7. **Request a review** from at least one [CODEOWNER](.github/CODEOWNERS).
 8. **Address review comments** promptly.
 
-> PRs that fail CI will not be merged. Security-sensitive changes require sign-off from `@your-org/security-team`.
+> PRs that fail CI will not be merged. Security-sensitive changes require sign-off from `@ardamoustafa1/security-team`.
 
 ---
 
