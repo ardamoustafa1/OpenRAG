@@ -4,6 +4,7 @@ import asyncio
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.background import BackgroundTask
 
 from app.core.db import async_session_factory
 from app.models.log import AuditLog
@@ -38,7 +39,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Content-Security-Policy"] = "default-src 'self'"
+        # Relaxed CSP for Next.js hydration and SSE streams
+        response.headers["Content-Security-Policy"] = "default-src 'self'; connect-src 'self' http://localhost:* ws://localhost:*; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"
         return response
 
 class TenantMiddleware(BaseHTTPMiddleware):
@@ -72,15 +74,14 @@ class AuditMiddleware(BaseHTTPMiddleware):
             ip_address = request.client.host if request.client else None
             user_agent = request.headers.get("user-agent")
 
-            # Fire-and-forget background task to write audit log without delaying response
-            asyncio.create_task(
-                log_audit_event_async(
-                    action=request.method,
-                    resource_type=request.url.path[:100],  # Truncate to match DB schema
-                    user_id=user_id,
-                    tenant_id=tenant_id,
-                    ip_address=ip_address,
-                    user_agent=user_agent
-                )
+            # Run the audit logging after the response is returned, keeping context alive safely
+            response.background = BackgroundTask(
+                log_audit_event_async,
+                action=request.method,
+                resource_type=request.url.path[:100],
+                user_id=user_id,
+                tenant_id=tenant_id,
+                ip_address=ip_address,
+                user_agent=user_agent
             )
         return response
