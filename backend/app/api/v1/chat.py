@@ -6,10 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel
 
-class SendMessageRequest(BaseModel):
-    content: str
-    collection_id: str
-
 from app.core.db import get_db_session
 from app.core.dependencies import get_current_tenant, get_current_user
 from app.models.tenant import Tenant
@@ -25,6 +21,12 @@ from app.llm.token_counter import token_counter
 import structlog
 
 logger = structlog.get_logger()
+
+class SendMessageRequest(BaseModel):
+    content: str
+    collection_id: str
+
+# Imports moved to top
 
 router = APIRouter(tags=["Chat"])
 
@@ -111,10 +113,30 @@ async def send_message(
                 sources=sources
             )
             
+            import json
+            full_response = ""
             async for chunk in generator:
                 yield chunk
                 
-                # If we wanted to save to DB, we'd parse the chunk content.
+                if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
+                    try:
+                        data_json = json.loads(chunk[6:].strip())
+                        if data_json.get("type") == "token":
+                            full_response += data_json.get("content", "")
+                    except Exception:
+                        pass
+                        
+            # Save assistant response to DB in a new session
+            if full_response:
+                from app.core.db import async_session_factory
+                async with async_session_factory() as local_db:
+                    assistant_msg = Message(
+                        conversation_id=conv.id,
+                        role="assistant",
+                        content=full_response
+                    )
+                    local_db.add(assistant_msg)
+                    await local_db.commit()
                 
         except asyncio.CancelledError:
             # Client disconnected
