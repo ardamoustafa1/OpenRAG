@@ -76,7 +76,7 @@ services:
     networks:
       - rag_network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:6333/healthz || exit 1"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:6333/readyz"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -188,6 +188,7 @@ services:
     volumes:
       - /var/log:/var/log
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/promtail/config.yml:/etc/promtail/config.yml:ro
     command: -config.file=/etc/promtail/config.yml
     networks:
       - rag_network
@@ -238,8 +239,8 @@ services:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=admin
-      - MINIO_SECRET_KEY=admin123
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-admin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-admin123}
       - OLLAMA_BASE_URL=http://ollama:11434
       - LITELLM_BASE_URL=http://litellm:4000
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production-use-openssl-rand-hex-32}
@@ -250,7 +251,7 @@ services:
       redis:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
     networks:
       - rag_network
     labels:
@@ -276,7 +277,16 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/rag_db
       - REDIS_URL=redis://redis:6379/0
-      # Include other needed env vars here
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-admin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-admin123}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_HOST=http://langfuse:3000
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LITELLM_BASE_URL=http://litellm:4000
     depends_on:
       redis:
         condition: service_healthy
@@ -294,6 +304,8 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LITELLM_BASE_URL=http://litellm:4000
     depends_on:
       redis:
         condition: service_healthy
@@ -309,7 +321,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.workers.celery_app flower --port=5555
+    command: celery -A app.workers.celery_app flower --port=5555 --basic_auth=$${FLOWER_BASIC_AUTH:-admin:admin}
     environment:
       - REDIS_URL=redis://redis:6379/0
     depends_on:
