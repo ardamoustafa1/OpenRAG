@@ -1,42 +1,45 @@
-import { AIPlatformClient } from '../src/client';
+import { OpenRAGClient } from '../src/client';
 
+// Mock global fetch
 global.fetch = jest.fn();
 
-describe('AIPlatformClient', () => {
-  let client: AIPlatformClient;
+describe('OpenRAGClient', () => {
+  let client: OpenRAGClient;
 
   beforeEach(() => {
-    client = new AIPlatformClient('test-key', 'http://api.test');
-    (global.fetch as jest.Mock).mockClear();
+    client = new OpenRAGClient({
+      apiKey: 'test-key',
+      tenantId: 'test-tenant',
+      baseUrl: 'https://api.test.com/v1'
+    });
+    jest.clearAllMocks();
   });
 
-  it('should make a chat request successfully', async () => {
+  it('should get collections and inject auth headers', async () => {
+    const mockResponse = [{ id: '1', name: 'Test' }];
     (global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
-      status: 200,
-      json: async () => ({ message: 'success' }),
+      json: async () => mockResponse,
     });
 
-    const response = await client.chat('hello', ['col1']);
-    expect(response.message).toBe('success');
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const collections = await client.getCollections();
+    expect(collections).toEqual(mockResponse);
+    expect(global.fetch).toHaveBeenCalledWith('https://api.test.com/v1/collections', {
+      headers: {
+        'Authorization': 'Bearer test-key',
+        'X-Tenant-ID': 'test-tenant',
+      }
+    });
   });
 
-  it('should retry on 429 rate limit', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 429,
-        text: async () => 'Rate Limited',
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ message: 'success after retry' }),
-      });
+  it('should create collection', async () => {
+    const mockResponse = { id: '2', name: 'New' };
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockResponse,
+    });
 
-    const response = await client.chat('hello', ['col1']);
-    expect(response.message).toBe('success after retry');
-    expect(global.fetch).toHaveBeenCalledTimes(2);
+    const result = await client.createCollection('New', 'Desc');
+    expect(result).toEqual(mockResponse);
   });
 });
