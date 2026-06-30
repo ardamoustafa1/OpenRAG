@@ -1,35 +1,32 @@
 import pytest
 import respx
 import httpx
-from ai_platform.client import AIPlatformClient, RateLimitError
+from openrag.client import OpenRAGClient
 
 @pytest.fixture
 def client():
-    return AIPlatformClient(api_key="test-key", tenant_url="http://api.test")
+    return OpenRAGClient(api_key="test-key", tenant_id="test-tenant", base_url="https://api.test.com/v1")
 
 @respx.mock
-def test_chat_success(client):
-    respx.post("http://api.test/api/v1/chat").mock(return_value=httpx.Response(200, json={"message": "success"}))
-    response = client.chat("hello", ["col1"])
-    assert response["message"] == "success"
-
-@respx.mock
-def test_chat_rate_limit_retry(client):
-    route = respx.post("http://api.test/api/v1/chat")
-    route.side_effect = [
-        httpx.Response(429, text="Rate Limited"),
-        httpx.Response(200, json={"message": "success after retry"})
-    ]
+def test_get_collections(client):
+    respx.get("https://api.test.com/v1/collections").mock(return_value=httpx.Response(200, json=[{"id": "1", "name": "Test"}]))
     
-    response = client.chat("hello", ["col1"])
-    assert response["message"] == "success after retry"
-    assert route.call_count == 2
+    collections = client.get_collections()
+    assert len(collections) == 1
+    assert collections[0]["name"] == "Test"
 
 @respx.mock
-@pytest.mark.asyncio
-async def test_achat_success():
-    client = AIPlatformClient(api_key="test-key", tenant_url="http://api.test")
-    respx.post("http://api.test/api/v1/chat").mock(return_value=httpx.Response(200, json={"message": "async success"}))
-    response = await client.achat("hello", ["col1"])
-    assert response["message"] == "async success"
-    await client.aclose()
+def test_create_collection(client):
+    respx.post("https://api.test.com/v1/collections").mock(return_value=httpx.Response(201, json={"id": "2", "name": "New"}))
+    
+    result = client.create_collection("New", "Desc")
+    assert result["id"] == "2"
+
+@respx.mock
+def test_auth_headers_injected(client):
+    route = respx.get("https://api.test.com/v1/collections").mock(return_value=httpx.Response(200, json=[]))
+    client.get_collections()
+    
+    request = route.calls.last.request
+    assert request.headers["Authorization"] == "Bearer test-key"
+    assert request.headers["X-Tenant-ID"] == "test-tenant"
