@@ -12,12 +12,6 @@
 
 ---
 
-## 🎥 See it in Action
-
-> **Demo GIF coming soon.** See the [chat UI](#), [admin panel](#), and [document ingestion pipeline](#) in action.
-
----
-
 ## 🌟 Key Features
 
 | Feature | Description |
@@ -84,7 +78,7 @@ For an in-depth look, see [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ```bash
 # 1. Clone the repository
 git clone https://github.com/ardamoustafa1/OpenRAG.git
-cd enterprise-rag
+cd OpenRAG
 
 # 2. Setup environment variables
 cp .env.example .env
@@ -127,7 +121,7 @@ make test-all           # Full test suite
 ## 📁 Project Structure
 
 ```
-enterprise-rag/
+OpenRAG/
 ├── backend/                 # FastAPI Python backend
 │   ├── app/
 │   │   ├── api/v1/         # REST + SSE API endpoints
@@ -194,4 +188,4 @@ If you discover a security vulnerability, please **do not** open a public issue.
 
 ## 📄 License
 
-[MIT License](LICENSE) — Copyright (c) 2026 Enterprise RAG Contributors
+[MIT License](LICENSE) — Copyright (c) 2026 OpenRAG Contributors
