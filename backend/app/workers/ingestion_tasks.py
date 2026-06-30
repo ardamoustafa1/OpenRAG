@@ -1,4 +1,5 @@
 import asyncio
+from asgiref.sync import async_to_sync
 import json
 import structlog
 from redis.asyncio import Redis
@@ -13,7 +14,7 @@ from app.rag.chunking import chunking_service
 from app.rag.embedding import embedding_service
 from app.rag.vector_store import vector_store
 from rank_bm25 import BM25Okapi
-import pickle
+from app.rag.bm25_serializer import BM25Serializer
 from sqlalchemy import select
 from app.models.document import DocumentChunk
 
@@ -95,14 +96,9 @@ def process_document(self, document_id: str, tenant_id: str, collection_id: str,
     """
     logger.info("Celery task started: process_document", document_id=document_id)
     try:
-        asyncio.run(_process_document_async(
-            document_id=document_id,
-            tenant_id=tenant_id,
-            collection_id=collection_id,
-            object_name=object_name,
-            filename=filename,
-            content_type=content_type
-        ))
+        async_to_sync(_process_document_async)(
+            document_id, tenant_id, collection_id, object_name, filename, content_type
+        )
     except Exception as exc:
         logger.error("Task failed, scheduling retry", document_id=document_id, error=str(exc))
         raise self.retry(exc=exc)
@@ -134,14 +130,11 @@ async def _build_bm25_index_async(tenant_id: str, collection_id: str):
             # Create mapping for retrieval
             mapping = [{"id": str(chunk.qdrant_point_id), "payload": chunk.metadata_} for chunk in chunks]
             
-            # Cache payload
-            cache_payload = {
-                "model": bm25,
-                "mapping": mapping
-            }
+            # Cache payload using safe JSON serialization
+            json_payload = BM25Serializer.to_json(bm25, mapping)
             
             col_name = f"tenant_{str(tenant_id).replace('-','')}_col_{str(collection_id).replace('-','')}"
-            await redis.set(f"bm25:{col_name}", pickle.dumps(cache_payload))
+            await redis.set(f"bm25:{col_name}", json_payload)
             logger.info("BM25 index built and cached successfully", collection_id=collection_id, chunks=len(chunks))
             
         except Exception as e:
@@ -154,7 +147,7 @@ def build_bm25_index(self, tenant_id: str, collection_id: str):
     """Synchronous Celery task wrapper to build BM25 index."""
     logger.info("Celery task started: build_bm25_index", collection_id=collection_id)
     try:
-        asyncio.run(_build_bm25_index_async(tenant_id, collection_id))
+        async_to_sync(_build_bm25_index_async)(tenant_id, collection_id)
     except Exception as exc:
         logger.error("BM25 build task failed", error=str(exc))
         raise self.retry(exc=exc)
