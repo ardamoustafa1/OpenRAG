@@ -1,0 +1,33 @@
+{{- if .Values.celery.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ai-platform.fullname" . }}-celery-beat
+  labels:
+    {{- include "ai-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: celery-beat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "ai-platform.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: celery-beat
+  template:
+    metadata:
+      labels:
+        {{- include "ai-platform.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: celery-beat
+    spec:
+      containers:
+        - name: celery-beat
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          command: ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "ai-platform.fullname" . }}-config
+            - secretRef:
+                name: {{ include "ai-platform.fullname" . }}-secret
+          resources:
+            {{- toYaml .Values.celery.beat.resources | nindent 12 }}
+{{- end }}
