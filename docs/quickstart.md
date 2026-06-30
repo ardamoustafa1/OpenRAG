@@ -13,8 +13,8 @@ Welcome to the Enterprise RAG AI Platform! This guide will help you set up the p
 Clone the repository and set up your environment variables:
 
 ```bash
-git clone https://github.com/your-org/enterprise-rag.git
-cd enterprise-rag
+git clone https://github.com/ardamoustafa1/OpenRAG.git
+cd OpenRAG
 
 cp .env.example .env
 ```
@@ -37,6 +37,9 @@ make up
 *(Alternatively: `docker compose up -d`)*
 
 Wait a few seconds for Postgres to initialize, then run database migrations:
+
+> [!IMPORTANT]
+> **MANDATORY STEP:** You must run database migrations to create the schemas before attempting to access the backend or UI.
 
 ```bash
 make migrate
