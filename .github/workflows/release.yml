@@ -59,8 +59,7 @@ jobs:
       - name: Package Helm Chart
         run: |
           mkdir -p infra/helm/ai-platform
-          helm package infra/helm/ai-platform || echo "Helm packaging skipped (no chart found)"
-          
+          helm package infra/helm/ai-platform
       - name: Create On-Premise Archive
         run: |
           mkdir -p onpremise-package
