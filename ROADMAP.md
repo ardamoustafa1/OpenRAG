@@ -67,8 +67,8 @@
 
 ## 💬 How to Influence the Roadmap
 
-- Open a [GitHub Discussion](https://github.com/your-org/enterprise-rag/discussions) with your use case
-- Upvote [existing feature requests](https://github.com/your-org/enterprise-rag/issues?q=is%3Aissue+label%3Afeature-request)
+- Open a [GitHub Discussion](https://github.com/ardamoustafa1/OpenRAG/discussions) with your use case
+- Upvote [existing feature requests](https://github.com/ardamoustafa1/OpenRAG/issues?q=is%3Aissue+label%3Afeature-request)
 - Comment on any roadmap item — your vote counts!
 
 ---
