@@ -58,10 +58,10 @@ build: ## Build all Docker images
 	docker compose build
 
 build-backend: ## Build backend Docker image only
-	docker build -t enterprise-rag-backend:dev ./backend
+	docker build -t OpenRAG-backend:dev ./backend
 
 build-frontend: ## Build frontend Docker image only
-	docker build -t enterprise-rag-frontend:dev ./frontend
+	docker build -t OpenRAG-frontend:dev ./frontend
 
 # ─── Linting ──────────────────────────────────────────────────────────────────
 
