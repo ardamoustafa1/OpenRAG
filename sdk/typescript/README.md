@@ -1,37 +1,61 @@
-# Enterprise RAG AI Platform - TypeScript SDK
+# @openrag/sdk
 
-A robust, enterprise-grade TypeScript SDK for integrating with the RAG AI Platform.
-
-## Features
-- **Native Fetch**: Zero heavy dependencies like Axios. Works in Node, Edge, and Browsers.
-- **Async Generators**: Real-time streaming for generative responses.
-- **Automatic Exponential Backoff**: Resilient handling of `429 Rate Limits` and transient network issues.
+The official TypeScript SDK for the [OpenRAG Platform](https://openrag.com).
 
 ## Installation
 
 ```bash
-npm install enterprise-rag-sdk
+npm install @openrag/sdk
 # or
-yarn add enterprise-rag-sdk
+yarn add @openrag/sdk
+# or
+pnpm add @openrag/sdk
 ```
 
-## Quickstart
+## Quick Start
 
 ```typescript
-import { AIPlatformClient } from 'enterprise-rag-sdk';
+import { OpenRAGClient } from '@openrag/sdk';
 
-const client = new AIPlatformClient("your_api_key", "https://api.yourdomain.com");
+// Initialize the client
+const client = new OpenRAGClient({
+  apiKey: 'your_api_key',
+  tenantId: 'your_tenant_id',
+  baseUrl: 'https://api.yourdomain.com/api/v1'
+});
 
-async function run() {
-  // Standard Chat
-  const response = await client.chat("What is our security policy?", ["col-1234"]);
-  console.log(response.message);
+async function main() {
+  // 1. Create a Collection
+  const collection = await client.createCollection('HR Documents');
+  const collectionId = collection.id;
 
-  // Streaming Chat
-  for await (const chunk of client.streamChat("Explain the Q3 report.", ["col-1234"])) {
-    process.stdout.write(chunk.content);
+  // 2. Upload a Document
+  const formData = new FormData();
+  // Example for browser environment or Node.js >= 18 with Blob
+  // formData.append('file', new Blob([/*...*/]), 'handbook.pdf');
+  const uploadRes = await client.uploadDocument(collectionId, formData);
+  console.log('Upload:', uploadRes);
+
+  // 3. Stream a Chat Completion
+  const stream = client.chatStream(collectionId, 'What is the remote work policy?');
+  
+  for await (const chunk of stream) {
+    if (chunk.content) {
+      process.stdout.write(chunk.content);
+    }
+    if (chunk.citations) {
+      console.log('\n[Sources:]', chunk.citations);
+    }
   }
 }
 
-run();
+main().catch(console.error);
+```
+
+## Development
+
+```bash
+npm install
+npm run test
+npm run build
 ```
