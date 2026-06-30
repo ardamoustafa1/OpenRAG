@@ -10,7 +10,7 @@ We provide security updates for the following versions:
 | `>= 0.1.x` | ✅ Active | Until v0.3.0 released |
 | `< 0.1.0` | ❌ End of Life | — |
 
-> **Enterprise customers** on a support contract receive extended patch support. Contact `enterprise@yourdomain.com` for details.
+> **Enterprise customers** on a support contract receive extended patch support. Contact `enterprise@openrag.com` for details.
 
 ---
 
@@ -22,18 +22,18 @@ Security is a top priority for the Enterprise RAG AI Platform. We take all secur
 
 ### 🔒 Private Disclosure (Preferred)
 
-Use [GitHub's private vulnerability reporting](https://github.com/your-org/enterprise-rag/security/advisories/new) to submit a report directly to the maintainers confidentially.
+Use [GitHub's private vulnerability reporting](https://github.com/ardamoustafa1/OpenRAG/security/advisories/new) to submit a report directly to the maintainers confidentially.
 
 ### 📧 Email Disclosure
 
-Alternatively, send an email to **`security@yourdomain.com`** with:
+Alternatively, send an email to **`security@openrag.com`** with:
 
 1. A **clear description** of the vulnerability.
 2. **Steps to reproduce** (including any PoC code or payloads).
 3. **Potential impact** (what an attacker could achieve).
 4. Your **preferred credit** (name/handle for acknowledgment, or anonymous).
 
-Encrypt sensitive reports using our [PGP key](https://keys.openpgp.org/search?q=security%40yourdomain.com) if needed.
+Encrypt sensitive reports using our [PGP key](https://keys.openpgp.org/search?q=security%40openrag.com) if needed.
 
 ---
 
