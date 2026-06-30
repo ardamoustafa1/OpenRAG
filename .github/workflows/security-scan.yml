@@ -1,0 +1,42 @@
+name: Scheduled Security Scan
+
+on:
+  schedule:
+    # Run every Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pip-audit bandit
+
+      - name: Run pip-audit
+        run: pip-audit
+        working-directory: ./backend
+
+      - name: Run Bandit
+        run: bandit -r app/ -ll
+        working-directory: ./backend
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        working-directory: ./frontend
