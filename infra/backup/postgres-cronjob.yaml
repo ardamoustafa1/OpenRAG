@@ -24,7 +24,7 @@ spec:
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: enterprise-rag-api-secrets
+                  name: OpenRAG-api-secrets
                   key: POSTGRES_PASSWORD
             volumeMounts:
             - name: backup-volume
