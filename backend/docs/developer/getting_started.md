@@ -13,7 +13,7 @@ Welcome to the Enterprise AI Platform backend team! This guide will get you from
 ### Step 1: Clone and Configure
 Clone the repository and copy the example environment file:
 ```bash
-git clone https://github.com/your-org/ai-platform.git
+git clone https://github.com/ardamoustafa1/ai-platform.git
 cd ai-platform/backend
 cp .env.example .env
 ```
