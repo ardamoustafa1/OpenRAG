@@ -75,8 +75,12 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ALLOW_ORIGINS: list[str] = Field(
-        default=["http://localhost:3000", "http://localhost:3001"],
+        default=["http://localhost:3000"],
         description="Allowed CORS origins. In production, set explicitly to your domain(s)."
+    )
+    ALLOWED_HOSTS: list[str] = Field(
+        default=["localhost", "127.0.0.1", "api.localhost", "app.localhost"],
+        description="Allowed hosts for TrustedHostMiddleware"
     )
 
     # Billing (Stripe)
