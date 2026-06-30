@@ -29,9 +29,14 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 async def login(
     request: Request,
     credentials: LoginRequest,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    redis: Redis = Depends(get_redis)
 ) -> Any:
     """Login with email and password."""
+    cache_key = f"login_failures:{credentials.email}"
+    failures = await redis.get(cache_key)
+    if failures and int(failures) >= 5:
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Account locked for 15 minutes.")
     # Note: Rate limiting should be applied here via slowapi decorator in main router inclusion
     stmt = select(User).where(User.email == credentials.email)
     user = (await db.execute(stmt)).scalars().first()
@@ -39,10 +44,16 @@ async def login(
     if not user or not user.hashed_password:
         # Prevent timing attacks by hashing anyway
         verify_password(credentials.password, "$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy")
+        await redis.incr(cache_key)
+        await redis.expire(cache_key, 900)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     if not verify_password(credentials.password, user.hashed_password):
+        await redis.incr(cache_key)
+        await redis.expire(cache_key, 900)
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    await redis.delete(cache_key)
 
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
@@ -89,17 +100,26 @@ async def logout(
 async def login_with_mfa(
     request: Request,
     credentials: MFALoginRequest,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    redis: Redis = Depends(get_redis)
 ) -> Any:
     """Login for users with MFA enabled. Requires email, password, and TOTP code."""
+    cache_key = f"login_failures:{credentials.email}"
+    failures = await redis.get(cache_key)
+    if failures and int(failures) >= 5:
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Account locked for 15 minutes.")
     stmt = select(User).where(User.email == credentials.email)
     user = (await db.execute(stmt)).scalars().first()
 
     if not user or not user.hashed_password:
         verify_password(credentials.password, "$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy")
+        await redis.incr(cache_key)
+        await redis.expire(cache_key, 900)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     if not verify_password(credentials.password, user.hashed_password):
+        await redis.incr(cache_key)
+        await redis.expire(cache_key, 900)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     if not user.is_active:
@@ -111,7 +131,11 @@ async def login_with_mfa(
     # Verify TOTP code
     totp = pyotp.TOTP(user.mfa_secret)
     if not totp.verify(credentials.mfa_code, valid_window=1):
+        await redis.incr(cache_key)
+        await redis.expire(cache_key, 900)
         raise HTTPException(status_code=401, detail="Invalid MFA code")
+
+    await redis.delete(cache_key)
 
     access_token = create_access_token(subject=user.id)
     refresh_token = create_refresh_token(subject=user.id)
@@ -126,7 +150,7 @@ async def login_with_mfa(
 @router.post("/mfa/setup", response_model=MFASetupResponse)
 async def setup_mfa(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db_session)
+    redis: Redis = Depends(get_redis)
 ) -> Any:
     """Generate TOTP secret and QR code URI."""
     if current_user.mfa_enabled:
@@ -136,9 +160,8 @@ async def setup_mfa(
     totp = pyotp.TOTP(secret)
     provisioning_uri = totp.provisioning_uri(name=current_user.email, issuer_name="Enterprise RAG")
     
-    # Temporarily store secret until verified
-    current_user.mfa_secret = secret
-    await db.commit()
+    # Temporarily store secret in Redis for 10 minutes until verified
+    await redis.setex(f"mfa_setup:{current_user.id}", 600, secret)
 
     return {"secret": secret, "provisioning_uri": provisioning_uri}
 
@@ -146,18 +169,25 @@ async def setup_mfa(
 async def verify_mfa(
     req: MFAVerifyRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    redis: Redis = Depends(get_redis)
 ) -> Any:
     """Verify TOTP code and enable MFA."""
     if current_user.mfa_enabled:
         raise HTTPException(status_code=400, detail="MFA already enabled")
         
-    totp = pyotp.TOTP(current_user.mfa_secret)
+    pending_secret = await redis.get(f"mfa_setup:{current_user.id}")
+    if not pending_secret:
+        raise HTTPException(status_code=400, detail="MFA setup session expired or not started")
+        
+    totp = pyotp.TOTP(pending_secret.decode('utf-8') if isinstance(pending_secret, bytes) else pending_secret)
     if not totp.verify(req.code):
         raise HTTPException(status_code=400, detail="Invalid MFA code")
 
+    current_user.mfa_secret = pending_secret.decode('utf-8') if isinstance(pending_secret, bytes) else pending_secret
     current_user.mfa_enabled = True
     await db.commit()
+    await redis.delete(f"mfa_setup:{current_user.id}")
     
     return {"message": "MFA enabled successfully"}
 
@@ -184,15 +214,19 @@ async def request_password_reset(
     req: PasswordResetRequest,
     db: AsyncSession = Depends(get_db_session)
 ) -> Any:
-    """Request a password reset link (simulated for now, would send email)."""
+    """Request a password reset link."""
+    from app.core.security import create_access_token
+    from datetime import timedelta
+    import structlog
+    
     stmt = select(User).where(User.email == req.email)
     user = (await db.execute(stmt)).scalars().first()
     
     if user:
-        # In a real app, send email with a temporary signed JWT
-        # reset_token = create_access_token(subject=user.id, expires_delta=timedelta(minutes=15))
-        # send_email(user.email, reset_token)
-        pass
+        reset_token = create_access_token(subject=user.id, expires_delta=timedelta(minutes=15))
+        # Simulated email sending
+        logger = structlog.get_logger()
+        logger.info("MOCK EMAIL SENT", to=user.email, reset_link=f"https://openrag.com/reset-password?token={reset_token}")
         
     # Always return 200 to prevent user enumeration
     return {"message": "If that email exists, a reset link has been sent."}
@@ -203,9 +237,24 @@ async def confirm_password_reset(
     db: AsyncSession = Depends(get_db_session)
 ) -> Any:
     """Confirm password reset using the token."""
-    # Dummy logic for now since email sending is simulated
-    # subject = verify_jwt(req.token)
-    # update user password...
+    from jose import jwt, JWTError
+    from app.core.config import settings
+    from app.core.security import get_password_hash
+    
+    try:
+        payload = jwt.decode(req.token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+        
+    stmt = select(User).where(User.id == user_id)
+    user = (await db.execute(stmt)).scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+        
+    user.hashed_password = get_password_hash(req.new_password)
+    await db.commit()
+    
     return {"message": "Password successfully reset."}
 
 @router.post("/refresh", response_model=Token)
