@@ -1,56 +1,54 @@
-# Enterprise RAG AI Platform - Python SDK
+# OpenRAG Python SDK
 
-A robust, enterprise-grade Python SDK for integrating with the RAG AI Platform.
-
-## Features
-- **Sync & Async** fully supported.
-- **Streaming** interface for real-time generative responses.
-- **Automatic Exponential Backoff** for rate limits (`429`) and transient network errors.
+The official Python SDK for the [OpenRAG Platform](https://openrag.com).
 
 ## Installation
 
 ```bash
-pip install enterprise-rag-sdk
+pip install openrag
 ```
 
-## Quickstart
+## Quick Start
 
 ```python
-from ai_platform import AIPlatformClient
+from openrag.client import OpenRAGClient
 
-# Initialize
-client = AIPlatformClient(api_key="your_api_key", tenant_url="https://api.yourdomain.com")
+# Initialize the client
+client = OpenRAGClient(
+    api_key="your_api_key",
+    tenant_id="your_tenant_id",
+    base_url="https://api.yourdomain.com/api/v1"
+)
 
-# Standard Chat
-response = client.chat(
-    query="What is our security policy?",
-    collection_ids=["col-1234"]
+# 1. Create a Collection
+collection = client.create_collection(name="HR Documents")
+collection_id = collection["id"]
+
+# 2. Upload a Document
+print("Uploading document...")
+response = client.upload_document(
+    collection_id=collection_id,
+    file_path="./employee_handbook.pdf"
 )
 print(response)
 
-# Streaming Chat
-for chunk in client.stream_chat(query="Explain the Q3 report.", collection_ids=["col-1234"]):
-    print(chunk.content, end="", flush=True)
+# 3. Stream a Chat Completion
+print("Asking a question...")
+stream = client.chat_stream(
+    collection_id=collection_id,
+    prompt="What is the remote work policy?"
+)
 
-client.close()
+for chunk in stream:
+    if "content" in chunk:
+        print(chunk["content"], end="", flush=True)
+    if "citations" in chunk:
+        print(f"\n[Sources: {chunk['citations']}]")
 ```
 
-## Async Usage
+## Development
 
-```python
-import asyncio
-from ai_platform import AIPlatformClient
-
-async def main():
-    client = AIPlatformClient(api_key="your_api_key", tenant_url="https://api.yourdomain.com")
-    
-    response = await client.achat("Hi", ["col-123"])
-    print(response)
-    
-    async for chunk in client.astream_chat("Explain Q3", ["col-123"]):
-        print(chunk.content, end="", flush=True)
-
-    await client.aclose()
-
-asyncio.run(main())
+```bash
+pip install -e ".[dev]"
+pytest tests/
 ```
