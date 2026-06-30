@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel, SoftDeleteMixin
+from app.models.types import EncryptedString
 
 class User(BaseModel, SoftDeleteMixin):
     __tablename__ = "users"
@@ -21,7 +22,7 @@ class User(BaseModel, SoftDeleteMixin):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
-    mfa_secret: Mapped[str | None] = mapped_column(String(255))
+    mfa_secret: Mapped[str | None] = mapped_column(EncryptedString(255))
 
     # Relationships
     tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="users")
