@@ -35,7 +35,7 @@ cp values.yaml custom-values.yaml
 
 ### 3. Deploy
 ```bash
-helm install enterprise-rag . -f custom-values.yaml --namespace rag-platform --create-namespace
+helm install OpenRAG . -f custom-values.yaml --namespace rag-platform --create-namespace
 ```
 
 ## Production Recommendations
