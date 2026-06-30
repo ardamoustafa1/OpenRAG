@@ -1,8 +1,7 @@
 import asyncio
 from typing import List, Dict, Any
 from collections import defaultdict
-from qdrant_client.http import models
-import pickle
+from app.rag.bm25_serializer import BM25Serializer
 from redis.asyncio import Redis
 
 from app.rag.vector_store import vector_store
@@ -12,34 +11,83 @@ import structlog
 
 logger = structlog.get_logger()
 
+
 class HybridRetriever:
     """
-    Combines Dense Retrieval (Qdrant) and Sparse Retrieval (BM25) using Reciprocal Rank Fusion (RRF).
+    Combines Dense Retrieval (Qdrant) and Sparse Retrieval (BM25 via Redis cache)
+    using Reciprocal Rank Fusion (RRF).
+
+    On each query:
+      1. A dense Qdrant vector search is run using the HyDE-augmented embedding.
+      2. A sparse BM25 lookup is run against the pre-built index stored in Redis.
+      3. Results are merged with RRF and optionally boosted by freshness signal.
     """
 
     def __init__(self, top_k: int = 50, rrf_k: int = 60):
         self.top_k = top_k
         self.rrf_k = rrf_k
 
-    async def retrieve(self, query: str, tenant_id: str, collection_id: str, use_hyde: bool = True) -> List[Dict[str, Any]]:
+    async def retrieve(
+        self,
+        query: str,
+        tenant_id: str,
+        collection_id: str,
+        use_hyde: bool = True,
+    ) -> List[Dict[str, Any]]:
         """
         Executes hybrid retrieval and fuses results.
+
+        Args:
+            query: Natural language user query.
+            tenant_id: UUID string for the active tenant.
+            collection_id: UUID string for the document collection.
+            use_hyde: Whether to use HyDE for query augmentation.
+
+        Returns:
+            List of result dicts sorted by fused RRF score (descending).
         """
         col_name = vector_store._collection_name(tenant_id, collection_id)
-        
-        try:
-            # 1. Generate query embedding (with optional HyDE)
-            query_vector = await query_understanding.generate_hyde_embedding(query, tenant_id, use_hyde)
 
-            # 2. Parallel Fetch: Dense and Sparse (Sparse is coming soon, disabled for now)
-            dense_results = await self._dense_search(col_name, query_vector)
-            sparse_results = []
-            
+        try:
+            # 1. Generate query embedding (with optional HyDE augmentation)
+            query_vector = await query_understanding.generate_hyde_embedding(
+                query, tenant_id, use_hyde
+            )
+
+            # 2. Run Dense and Sparse retrieval in parallel; handle partial failures gracefully
+            dense_task = self._dense_search(col_name, query_vector)
+            sparse_task = self._sparse_search(col_name, query, tenant_id, collection_id)
+
+            dense_results, sparse_results = await asyncio.gather(
+                dense_task, sparse_task, return_exceptions=True
+            )
+
+            if isinstance(dense_results, Exception):
+                logger.warning(
+                    "Dense search failed — proceeding with sparse only",
+                    error=str(dense_results),
+                )
+                dense_results = []
+            if isinstance(sparse_results, Exception):
+                logger.warning(
+                    "Sparse search failed — proceeding with dense only",
+                    error=str(sparse_results),
+                )
+                sparse_results = []
+
             # 3. RRF Fusion
             fused_results = self._reciprocal_rank_fusion(dense_results, sparse_results)
-            
-            # 4. Optional: Metadata Boosting (e.g. freshness)
+
+            # 4. Freshness-based metadata boosting
             fused_results = self._apply_metadata_boosting(fused_results)
+
+            logger.info(
+                "Hybrid retrieval complete",
+                dense_hits=len(dense_results),
+                sparse_hits=len(sparse_results),
+                fused_hits=len(fused_results),
+                collection=col_name,
+            )
 
             # Return top 100 max after fusion
             return fused_results[:100]
@@ -48,60 +96,123 @@ class HybridRetriever:
             logger.error("Hybrid retrieval failed", error=str(e), collection=col_name)
             raise
 
-    async def _dense_search(self, collection_name: str, query_vector: list[float]) -> List[Dict[str, Any]]:
-        """Qdrant vector search."""
+    # ─── Private Retrieval Methods ─────────────────────────────────────────────
+
+    async def _dense_search(
+        self, collection_name: str, query_vector: list[float]
+    ) -> List[Dict[str, Any]]:
+        """Qdrant dense vector search."""
+        hits = await vector_store.client.search(
+            collection_name=collection_name,
+            query_vector=query_vector,
+            limit=self.top_k,
+            with_payload=True,
+        )
+        return [{"id": hit.id, "score": hit.score, "payload": hit.payload} for hit in hits]
+
+    async def _sparse_search(
+        self,
+        collection_name: str,
+        query: str,
+        tenant_id: str,
+        collection_id: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Sparse BM25 search using the pre-built index stored in Redis.
+        The index is built by the Celery `build_bm25_index` task after each
+        document ingestion and refreshed on-demand.
+        Falls back to empty list if the index is not yet available.
+        """
+        redis = Redis.from_url(settings.REDIS_URL)
         try:
-            hits = await vector_store.client.search(
-                collection_name=collection_name,
-                query_vector=query_vector,
-                limit=self.top_k,
-                with_payload=True
-            )
-            return [{"id": hit.id, "score": hit.score, "payload": hit.payload} for hit in hits]
-        except Exception as e:
-            logger.warning("Dense search failed", error=str(e), collection=collection_name)
-            return []
+            cache_key = f"bm25:{collection_name}"
+            cached = await redis.get(cache_key)
+            if not cached:
+                logger.info(
+                    "BM25 index not yet available for collection — skipping sparse",
+                    collection=collection_name,
+                )
+                return []
 
-    async def _sparse_search(self, collection_name: str, query: str) -> List[Dict[str, Any]]:
-        """
-        Sparse search using BM25.
-        Currently disabled as we migrate from local Redis BM25 index to a robust inverted index.
-        """
-        raise NotImplementedError("BM25 retrieval coming soon")
+            # Deserialize using safe JSON deserialization
+            cache_payload = BM25Serializer.from_json(cached)
+            bm25 = cache_payload["model"]
+            mapping: list[dict] = cache_payload["mapping"]
 
-    def _reciprocal_rank_fusion(self, dense_results: List[Dict], sparse_results: List[Dict]) -> List[Dict]:
-        """
-        RRF Formula: score = Σ (1 / (k + rank_i))
-        """
-        rrf_scores = defaultdict(float)
-        items_map = {}
+            tokenized_query = query.lower().split()
+            scores = bm25.get_scores(tokenized_query)
 
-        # Rank Dense
+            # Sort by BM25 score descending and take top_k
+            ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)[: self.top_k]
+
+            results = []
+            for idx, score in ranked:
+                if idx < len(mapping) and score > 0:
+                    entry = mapping[idx]
+                    results.append(
+                        {
+                            "id": entry["id"],
+                            "score": float(score),
+                            "payload": entry.get("payload", {}),
+                        }
+                    )
+            return results
+
+        finally:
+            await redis.aclose()
+
+    # ─── Fusion & Ranking ──────────────────────────────────────────────────────
+
+    def _reciprocal_rank_fusion(
+        self, dense_results: List[Dict], sparse_results: List[Dict]
+    ) -> List[Dict]:
+        """
+        RRF Formula: score(d) = Σ_i  1 / (k + rank_i(d))
+        where k=60 (default) dampens the impact of very high ranks.
+        Documents appearing in both lists receive additive boosts.
+        """
+        rrf_scores: dict[str, float] = defaultdict(float)
+        items_map: dict[str, dict] = {}
+
         for rank, item in enumerate(dense_results):
-            doc_id = item["id"]
+            doc_id = str(item["id"])
             rrf_scores[doc_id] += 1.0 / (self.rrf_k + rank + 1)
             items_map[doc_id] = item["payload"]
 
-        # Rank Sparse
         for rank, item in enumerate(sparse_results):
-            doc_id = item["id"]
+            doc_id = str(item["id"])
             rrf_scores[doc_id] += 1.0 / (self.rrf_k + rank + 1)
             items_map[doc_id] = item["payload"]
 
-        # Sort by fused score descending
         fused = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
-        
-        return [{"id": doc_id, "rrf_score": score, "payload": items_map[doc_id]} for doc_id, score in fused]
+        return [
+            {"id": doc_id, "rrf_score": score, "payload": items_map[doc_id]}
+            for doc_id, score in fused
+        ]
 
     def _apply_metadata_boosting(self, results: List[Dict]) -> List[Dict]:
         """
-        Applies artificial score boosts based on payload metadata.
-        e.g., boosting documents created in the last 30 days.
+        Freshness boost: documents created within the last 30 days receive
+        a 20% multiplicative boost to their RRF score, surfacing recent
+        knowledge above older but semantically similar content.
         """
-        # Example logic:
-        # for res in results:
-        #     if is_recent(res["payload"].get("created_at")):
-        #         res["rrf_score"] *= 1.2
-        return results
+        from datetime import datetime, timezone, timedelta
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+
+        for res in results:
+            created_at_str = res["payload"].get("created_at")
+            if created_at_str:
+                try:
+                    created_at = datetime.fromisoformat(str(created_at_str))
+                    if created_at.tzinfo is None:
+                        created_at = created_at.replace(tzinfo=timezone.utc)
+                    if created_at > cutoff:
+                        res["rrf_score"] = res.get("rrf_score", 0.0) * 1.2
+                except (ValueError, TypeError):
+                    pass
+
+        return sorted(results, key=lambda x: x.get("rrf_score", 0.0), reverse=True)
+
 
 retriever = HybridRetriever()
