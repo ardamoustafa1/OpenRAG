@@ -1,42 +1,116 @@
 # Architecture: Enterprise RAG AI Platform
 
-## 1. System Components
+## 1. High-Level System Architecture
 
-The platform is designed as a modular, containerized microservices architecture to ensure high availability, security, and true multi-tenancy.
+The platform operates as a modular, horizontally scalable microservices ecosystem. It is engineered for true logical multi-tenancy, ensuring data isolation across the entire stack.
 
-### 1.1 Core Backend (FastAPI)
-- **Framework:** FastAPI (Python 3.12+)
-- **Purpose:** Handles all API requests, authentication, and orchestrates the RAG pipeline.
-- **Scaling:** Can be scaled horizontally via Kubernetes HPA.
+```mermaid
+graph TD
+    Client[Client Browser / SDK] -->|HTTPS / WSS| Ingress[Traefik Ingress Controller]
+    
+    Ingress -->|REST / SSE| API[FastAPI Backend]
+    Ingress -->|Static Assets| Frontend[Next.js Frontend]
+    Ingress -->|Monitoring| Grafana[Grafana Dashboard]
+    
+    API -->|Auth, RBAC, Config| DB[(PostgreSQL + pgvector)]
+    API -->|Rate Limiting, Cache| Redis[(Redis Stack)]
+    API -->|Dense & Sparse Embeddings| VectorDB[(Qdrant Vector Store)]
+    
+    API -.->|Enqueue Tasks| CeleryWorker[Celery Worker]
+    CeleryWorker -->|Raw Document Storage| Minio[(MinIO Object Storage)]
+    CeleryWorker -->|Upsert Chunks| VectorDB
+    CeleryWorker -->|Read/Write State| DB
+    
+    API -->|Context + Prompt| LLM[LiteLLM Proxy]
+    LLM --> vLLM[vLLM Inference Engine]
+    LLM --> Ollama[Ollama Local Models]
+    
+    API -.->|Traces & Evals| Langfuse[(Langfuse)]
+    API -.->|Metrics| Prom[Prometheus]
+    CeleryWorker -.->|Logs| Loki[(Loki Log Aggregator)]
+```
 
-### 1.2 Frontend (Next.js)
-- **Framework:** Next.js (React)
-- **Purpose:** Delivers a responsive, WAI-ARIA compliant, dark-mode optimized user interface. Uses `@tanstack/react-query` for real-time state management.
+## 2. Hybrid RAG Query Flow
 
-### 1.3 Data & Storage Layer
-- **PostgreSQL (pgvector):** Stores relational data (Users, Tenants, Billing, Audit Logs).
-- **Qdrant:** Highly optimized Vector Database storing document embeddings for dense retrieval.
-- **MinIO:** S3-compatible object storage holding raw uploaded documents before ingestion.
-- **Redis:** Acts as the Celery message broker, caches temporary data, and maintains rate limiting states.
+Our Retrieval-Augmented Generation pipeline leverages both semantic (Dense) and keyword (Sparse BM25) search for maximum recall.
 
-### 1.4 Background Processing (Celery)
-- **Purpose:** Handles asynchronous document parsing, chunking (via `unstructured`), and embedding generation to prevent blocking the API.
+```mermaid
+sequenceDiagram
+    participant User as User (Next.js)
+    participant API as FastAPI Router
+    participant Auth as Auth Middleware
+    participant Qdrant as Qdrant (VectorDB)
+    participant LLM as LiteLLM / vLLM
+    
+    User->>API: POST /api/v1/chat (Prompt)
+    API->>Auth: Extract X-Tenant-ID & Verify JWT
+    Auth-->>API: Tenant Context
+    
+    API->>LLM: Embed User Prompt
+    LLM-->>API: Dense Vector [0.1, 0.4...]
+    
+    par Dense Search
+        API->>Qdrant: Search (Vector + Tenant Filter)
+    and Sparse Search
+        API->>Qdrant: Search (BM25 Keyword Match)
+    end
+    
+    Qdrant-->>API: Dense Chunks & Sparse Chunks
+    
+    API->>API: Reciprocal Rank Fusion (RRF) Re-ranking
+    API->>API: Construct Context Window
+    
+    API->>LLM: Stream (Context + System Prompt + User Prompt)
+    LLM-->>API: Token Stream
+    API-->>User: Server-Sent Events (SSE) Stream
+```
 
-### 1.5 LLM Orchestration
-- **vLLM / Ollama:** Local inference engines executing generative requests.
-- **LiteLLM:** A proxy layer managing model routing and fallback mechanisms.
+## 3. Asynchronous Ingestion Pipeline
 
-## 2. Request Flow (Chat)
+Document ingestion is fully decoupled from the API to prevent blocking operations when handling large PDFs or multi-gigabyte archives.
 
-1. **Client Request:** User sends a prompt via Next.js UI.
-2. **Gateway:** Traefik routes the request to the FastAPI backend.
-3. **Authentication:** `TenantMiddleware` extracts the tenant context. User JWT is verified.
-4. **Vector Retrieval:** Backend queries Qdrant for semantic similarity (Dense search).
-5. **Context Building:** Retrieved chunks are reranked and packaged into a unified context window.
-6. **Generation:** Prompt + Context is forwarded to LiteLLM -> vLLM.
-7. **Streaming:** SSE stream is established, piping tokens back to the client in real-time.
+```mermaid
+sequenceDiagram
+    participant API as API
+    participant Minio as MinIO
+    participant Redis as Redis Queue
+    participant Celery as Celery Worker
+    participant Unstructured as Unstructured Parser
+    participant LLM as LLM (Embedding)
+    participant Qdrant as Qdrant
+    
+    API->>Minio: Upload Raw PDF
+    API->>Redis: Enqueue `process_document(id)`
+    API-->>User: HTTP 202 Accepted
+    
+    Celery->>Redis: Dequeue Job
+    Celery->>Minio: Download Raw PDF
+    Celery->>Unstructured: OCR & Text Extraction
+    Unstructured-->>Celery: Raw Text Elements
+    
+    Celery->>Celery: Semantic Chunking (LangChain)
+    
+    loop Batch Embeddings
+        Celery->>LLM: Embed Chunks
+        LLM-->>Celery: Vectors
+    end
+    
+    Celery->>Qdrant: Bulk Upsert (Vectors + Tenant Metadata)
+    Celery->>API: Update Document Status (Success)
+```
 
-## 3. Security Architecture
-- **Strict Network Policies:** Kubernetes Calico rules block all direct access to databases.
-- **Secrets Management:** Bitnami Sealed Secrets manage production credentials.
-- **Per-Tenant Rate Limiting:** Enforced via `slowapi` utilizing the unique `tenant_id`.
+## 4. Security & Tenant Isolation Model
+
+Security is built into the lowest levels of the architecture. The platform operates on a **Logical Separation** model.
+
+### 4.1 Request Context
+Every request passing through Traefik is intercepted by `TenantMiddleware` in FastAPI. This middleware extracts the `X-Tenant-ID` (or infers it from the subdomain) and binds it to a `ContextVar`. Every subsequent database or cache operation is inherently filtered by this context.
+
+### 4.2 Row-Level Security (PostgreSQL)
+PostgreSQL schemas leverage SQLAlchemy global filters to ensure a query for `Document.select()` implicitly appends `WHERE tenant_id = current_tenant`.
+
+### 4.3 Vector Isolation (Qdrant)
+Qdrant does not support true database-level multi-tenancy in the open-source version. To compensate, all vector upserts and search payloads strictly inject `{ "tenant_id": "uuid" }` into the Qdrant `payload`. The search wrapper enforces a mandatory `Must` filter condition on this key, guaranteeing tenant isolation at the index level.
+
+### 4.4 Air-gapped AI
+By utilizing local models via `vLLM` and `Ollama`, no prompts or retrieved context ever leave the VPC. The `LiteLLM` proxy acts as an internal firewall, capable of masking PII before sending it to the model layer (if configured).
