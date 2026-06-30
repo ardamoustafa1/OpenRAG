@@ -9,8 +9,8 @@
 services:
   backend:
     build: null
-    image: ghcr.io/your-org/enterprise-rag-api:latest
+    image: ghcr.io/ardamoustafa1/OpenRAG-api:latest
 
   frontend:
     build: null
-    image: ghcr.io/your-org/enterprise-rag-frontend:latest
+    image: ghcr.io/ardamoustafa1/OpenRAG-frontend:latest
