@@ -6,7 +6,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: enterprise-rag-api
+      app: OpenRAG-api
   policyTypes:
   - Ingress
   - Egress
