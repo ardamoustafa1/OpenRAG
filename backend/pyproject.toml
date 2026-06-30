@@ -1,5 +1,5 @@
 [project]
-name = "enterprise-rag-platform"
+name = "OpenRAG-platform"
 version = "0.1.0"
 description = "Multi-tenant completely on-premise RAG-based AI platform."
 readme = "README.md"
@@ -16,6 +16,7 @@ dependencies = [
     # Task queue
     "celery>=5.4.0",
     "redis>=5.0.6",
+    "asgiref>=3.8.1",
     # Vector & storage
     "qdrant-client>=1.9.1",
     "tiktoken>=0.7.0",
@@ -29,6 +30,7 @@ dependencies = [
     "opentelemetry-sdk>=1.24.0",
     "opentelemetry-instrumentation-fastapi>=0.45b0",
     "opentelemetry-exporter-otlp>=1.24.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.24.0",
     "langfuse>=2.36.0",
     "prometheus-client>=0.20.0",
     "structlog>=24.2.0",
