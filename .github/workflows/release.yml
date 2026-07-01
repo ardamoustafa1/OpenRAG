@@ -75,7 +75,7 @@ jobs:
           sha256sum ai-platform-onprem-${{ github.ref_name }}.zip > checksum.txt
 
       - name: GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             ai-platform-onprem-${{ github.ref_name }}.zip
