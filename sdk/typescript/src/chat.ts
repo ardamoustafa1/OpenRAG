@@ -1,9 +1,9 @@
-import { EnterpriseRAGClient } from './client';
+import { OpenRAGClient } from './client';
 
 export class ChatClient {
-  private client: EnterpriseRAGClient;
+  private client: OpenRAGClient;
 
-  constructor(client: EnterpriseRAGClient) {
+  constructor(client: OpenRAGClient) {
     this.client = client;
   }
 
@@ -12,8 +12,9 @@ export class ChatClient {
     content: string, 
     collectionId: string
   ): Promise<any> {
-    return this.client.fetch(`/conversations/${conversationId}/messages`, {
+    return this.client.request(`/conversations/${conversationId}/messages`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, collection_id: collectionId }),
     });
   }

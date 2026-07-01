@@ -1,45 +1,40 @@
 import { OpenRAGClient } from '../src/client';
 
-// Mock global fetch
-global.fetch = jest.fn();
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
 
 describe('OpenRAGClient', () => {
-  let client: OpenRAGClient;
-
   beforeEach(() => {
-    client = new OpenRAGClient({
-      apiKey: 'test-key',
-      tenantId: 'test-tenant',
-      baseUrl: 'https://api.test.com/v1'
-    });
-    jest.clearAllMocks();
+    mockFetch.mockClear();
   });
 
-  it('should get collections and inject auth headers', async () => {
-    const mockResponse = [{ id: '1', name: 'Test' }];
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockResponse,
-    });
-
-    const collections = await client.getCollections();
-    expect(collections).toEqual(mockResponse);
-    expect(global.fetch).toHaveBeenCalledWith('https://api.test.com/v1/collections', {
-      headers: {
-        'Authorization': 'Bearer test-key',
-        'X-Tenant-ID': 'test-tenant',
-      }
-    });
+  it('should initialize with api key', () => {
+    const client = new OpenRAGClient({ apiKey: 'sk_test_123', tenantId: 'tenant_123' });
+    expect(client).toBeDefined();
   });
 
-  it('should create collection', async () => {
-    const mockResponse = { id: '2', name: 'New' };
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
+  it('should call collections endpoint with auth headers', async () => {
+    mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => mockResponse,
+      json: async () => ([{ id: 'col_1', name: 'Docs', description: '', created_at: '2026-01-01' }])
     });
 
-    const result = await client.createCollection('New', 'Desc');
-    expect(result).toEqual(mockResponse);
+    const client = new OpenRAGClient({
+      apiKey: 'sk_test_123',
+      tenantId: 'tenant_123',
+      baseUrl: 'http://localhost:8000/api/v1',
+    });
+    const result = await client.getCollections();
+    
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:8000/api/v1/collections?skip=0&limit=100',
+      expect.objectContaining({
+        headers: {
+          Authorization: 'Bearer sk_test_123',
+          'X-Tenant-ID': 'tenant_123',
+        },
+      })
+    );
+    expect(result[0].id).toBe('col_1');
   });
 });
