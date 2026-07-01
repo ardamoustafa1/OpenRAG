@@ -27,11 +27,11 @@ def mask_sensitive_data(
     return event_dict
 
 
-def setup_logging(is_production: bool = False):
+def setup_logging(is_production: bool = False) -> None:
     """
     Configures structlog. JSON for production, console for development.
     """
-    shared_processors = [
+    shared_processors: list[Any] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
