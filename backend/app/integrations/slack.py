@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, Request
@@ -18,8 +19,8 @@ slack_app = App(
 handler = SlackRequestHandler(slack_app)
 
 
-@slack_app.command("/ask")
-def handle_ask_command(ack, respond, command):
+@slack_app.command("/ask")  # type: ignore[untyped-decorator]
+def handle_ask_command(ack: Any, respond: Any, command: dict[str, Any]) -> None:
     """
     Handles the `/ask` slash command from Slack.
     Queries the RAG platform and responds in the thread.
@@ -35,7 +36,7 @@ def handle_ask_command(ack, respond, command):
         f"Here is the answer to '{query}' from your secure enterprise documents."
     )
 
-    blocks = [
+    blocks: list[dict[str, Any]] = [
         {"type": "section", "text": {"type": "mrkdwn", "text": response_text}},
         {
             "type": "context",
@@ -51,8 +52,8 @@ def handle_ask_command(ack, respond, command):
     respond(blocks=blocks)
 
 
-@slack_app.event("app_mention")
-def handle_app_mention_events(body, say):
+@slack_app.event("app_mention")  # type: ignore[untyped-decorator]
+def handle_app_mention_events(body: dict[str, Any], say: Any) -> None:
     """
     Handles direct mentions of the bot (e.g. @platformbot).
     """
@@ -64,7 +65,7 @@ def handle_app_mention_events(body, say):
 
 
 @router.post("/slack/events")
-async def slack_events(req: Request):
+async def slack_events(req: Request) -> Any:
     """
     The main webhook endpoint registered in the Slack API Dashboard.
     Passes the raw request to the slack-bolt handler.
