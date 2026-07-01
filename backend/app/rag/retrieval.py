@@ -60,22 +60,29 @@ class HybridRetriever:
             dense_task = self._dense_search(col_name, query_vector)
             sparse_task = self._sparse_search(col_name, query, tenant_id, collection_id)
 
-            dense_results, sparse_results = await asyncio.gather(
+            gather_res: list[Any] = await asyncio.gather(
                 dense_task, sparse_task, return_exceptions=True
             )
+            dense_res_raw: Any = gather_res[0]
+            sparse_res_raw: Any = gather_res[1]
 
-            if isinstance(dense_results, Exception):
+            dense_results: list[dict[str, Any]] = []
+            if isinstance(dense_res_raw, Exception):
                 logger.warning(
                     "Dense search failed — proceeding with sparse only",
-                    error=str(dense_results),
+                    error=str(dense_res_raw),
                 )
-                dense_results = []
-            if isinstance(sparse_results, Exception):
+            else:
+                dense_results = dense_res_raw
+
+            sparse_results: list[dict[str, Any]] = []
+            if isinstance(sparse_res_raw, Exception):
                 logger.warning(
                     "Sparse search failed — proceeding with dense only",
-                    error=str(sparse_results),
+                    error=str(sparse_res_raw),
                 )
-                sparse_results = []
+            else:
+                sparse_results = sparse_res_raw
 
             # 3. RRF Fusion
             fused_results = self._reciprocal_rank_fusion(dense_results, sparse_results)
@@ -104,7 +111,7 @@ class HybridRetriever:
         self, collection_name: str, query_vector: list[float]
     ) -> List[Dict[str, Any]]:
         """Qdrant dense vector search."""
-        hits = await vector_store.client.search(
+        hits = await vector_store.client.search(  # type: ignore[attr-defined]
             collection_name=collection_name,
             query_vector=query_vector,
             limit=self.top_k,
@@ -139,7 +146,7 @@ class HybridRetriever:
         # Deserialize using safe JSON deserialization
         cache_payload = BM25Serializer.from_json(cached)
         bm25 = cache_payload["model"]
-        mapping: list[dict] = cache_payload["mapping"]
+        mapping: list[dict[str, Any]] = cache_payload["mapping"]
 
         tokenized_query = query.lower().split()
         scores = bm25.get_scores(tokenized_query)
@@ -165,15 +172,15 @@ class HybridRetriever:
     # ─── Fusion & Ranking ──────────────────────────────────────────────────────
 
     def _reciprocal_rank_fusion(
-        self, dense_results: List[Dict], sparse_results: List[Dict]
-    ) -> List[Dict]:
+        self, dense_results: List[Dict[str, Any]], sparse_results: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """
         RRF Formula: score(d) = Σ_i  1 / (k + rank_i(d))
         where k=60 (default) dampens the impact of very high ranks.
         Documents appearing in both lists receive additive boosts.
         """
         rrf_scores: dict[str, float] = defaultdict(float)
-        items_map: dict[str, dict] = {}
+        items_map: dict[str, dict[str, Any]] = {}
 
         for rank, item in enumerate(dense_results):
             doc_id = str(item["id"])
@@ -191,7 +198,9 @@ class HybridRetriever:
             for doc_id, score in fused
         ]
 
-    def _apply_metadata_boosting(self, results: List[Dict]) -> List[Dict]:
+    def _apply_metadata_boosting(
+        self, results: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """
         Freshness boost: documents created within the last 30 days receive
         a 20% multiplicative boost to their RRF score, surfacing recent
