@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, List
 
 import structlog
 from fastapi import APIRouter, HTTPException, status
@@ -16,11 +16,11 @@ class WebhookCreate(BaseModel):
 
 
 # Mock memory store
-MOCK_WEBHOOKS = {}
+MOCK_WEBHOOKS: dict[str, Any] = {}
 
 
 @router.post("/webhooks", status_code=status.HTTP_201_CREATED)
-async def create_webhook(webhook: WebhookCreate):
+async def create_webhook(webhook: WebhookCreate) -> dict[str, Any]:
     """
     Registers a new webhook endpoint for the current tenant.
     Events: document.processed, conversation.created, etc.
@@ -28,13 +28,13 @@ async def create_webhook(webhook: WebhookCreate):
     import uuid
 
     wh_id = str(uuid.uuid4())
-    MOCK_WEBHOOKS[wh_id] = webhook.dict()
+    MOCK_WEBHOOKS[wh_id] = webhook.model_dump()
     logger.info("Webhook created", webhook_id=wh_id, url=webhook.url)
     return {"id": wh_id, **MOCK_WEBHOOKS[wh_id]}
 
 
 @router.post("/webhooks/{webhook_id}/test")
-async def test_webhook(webhook_id: str):
+async def test_webhook(webhook_id: str) -> dict[str, str]:
     """
     Fires a dummy event to verify connectivity and signature validation.
     """
