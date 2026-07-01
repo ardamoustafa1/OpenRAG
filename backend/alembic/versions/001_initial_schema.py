@@ -309,18 +309,43 @@ def upgrade() -> None:
             server_default=sa.text("uuid_generate_v4()"),
         ),
         sa.Column(
+            "tenant_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("tenants.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
             "conversation_id",
             postgresql.UUID(as_uuid=True),
             sa.ForeignKey("conversations.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
         ),
-        sa.Column("role", sa.String(20), nullable=False),
+        sa.Column(
+            "user_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column("role", sa.String(50), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
-        sa.Column("sources", postgresql.JSONB(), nullable=True),
-        sa.Column("token_count", sa.Integer(), nullable=True),
+        sa.Column(
+            "source_chunks", postgresql.JSONB(), nullable=True, server_default="[]"
+        ),
+        sa.Column("model_id", sa.String(100), nullable=True),
+        sa.Column("prompt_tokens", sa.Integer(), nullable=True, server_default="0"),
+        sa.Column("completion_tokens", sa.Integer(), nullable=True, server_default="0"),
+        sa.Column("total_tokens", sa.Integer(), nullable=True, server_default="0"),
+        sa.Column("latency_ms", sa.Integer(), nullable=True, server_default="0"),
         sa.Column(
             "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
+        sa.Column(
+            "updated_at",
             sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.text("NOW()"),
@@ -442,7 +467,6 @@ def upgrade() -> None:
             server_default=sa.text("NOW()"),
         ),
     )
-    op.create_index("ix_audit_logs_tenant_id", "audit_logs", ["tenant_id"])
     op.create_index("ix_audit_logs_created_at", "audit_logs", ["created_at"])
 
     # -------------------------------------------------------------------------
