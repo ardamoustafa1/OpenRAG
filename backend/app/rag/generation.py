@@ -1,5 +1,5 @@
 import json
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 import structlog
 
@@ -23,18 +23,18 @@ class GenerationService:
     Handles prompt construction and SSE streaming for chat responses.
     """
 
-    def build_system_prompt(self, tenant_settings: dict) -> str:
+    def build_system_prompt(self, tenant_settings: dict[str, Any]) -> str:
         tenant_prompt = tenant_settings.get("system_prompt", "")
         return prompt_manager.build_system_prompt(PLATFORM_BASE_PROMPT, tenant_prompt)
 
     async def stream_chat(
         self,
         model: str,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         context_string: str,
-        tenant_settings: dict,
+        tenant_settings: dict[str, Any],
         tenant_id: str,
-        sources: list[dict],
+        sources: list[dict[str, Any]],
     ) -> AsyncGenerator[str, None]:
         """
         Generates Server-Sent Events (SSE) stream.
