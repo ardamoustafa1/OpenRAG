@@ -1,21 +1,9 @@
-import os
-
-import httpx
 import pytest
-
-# These tests would typically run against a staging environment or Testcontainers.
-BASE_URL = os.getenv("TEST_API_URL", "http://localhost:8000")
-API_KEY = os.getenv("TEST_API_KEY", "test-key-123")
+from httpx import AsyncClient
 
 
-@pytest.fixture
-def client():
-    headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
-    with httpx.Client(base_url=BASE_URL, headers=headers) as c:
-        yield c
-
-
-def test_webhook_lifecycle(client):
+@pytest.mark.asyncio
+async def test_webhook_lifecycle(client: AsyncClient):
     """
     Tests creating a webhook, verifying it exists, and triggering a test event.
     """
@@ -25,18 +13,18 @@ def test_webhook_lifecycle(client):
         "events": ["document.processed"],
         "secret": "test_secret",
     }
-    _resp = client.post("/api/v1/webhooks", json=payload)
-    # If the app isn't running, this will fail in a real test. We mock assertions.
-    # assert resp.status_code == 201
-    # data = resp.json()
-    # assert "id" in data
+    resp = await client.post("/api/v1/webhooks", json=payload)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert "id" in data
 
     # 2. Test Event Delivery
     # test_resp = client.post(f"/api/v1/webhooks/{data['id']}/test")
     # assert test_resp.status_code == 200
 
 
-def test_tenant_isolation(client):
+@pytest.mark.asyncio
+async def test_tenant_isolation(client: AsyncClient):
     """
     Ensures Tenant A cannot list Tenant B's collections.
     """
