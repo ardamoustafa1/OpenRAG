@@ -19,7 +19,7 @@ import logging
 import time
 import uuid
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator, Callable
 
 try:
     __version__ = importlib.metadata.version("OpenRAG")
@@ -55,6 +55,7 @@ from app.api.v1.chat import router as chat_router
 from app.api.v1.documents import router as documents_router
 from app.api.v1.tenants import router as tenants_router
 from app.api.v1.users import router as users_router
+from app.api.v1.webhooks import router as webhooks_router
 
 # local imports
 from app.core.config import settings
@@ -126,7 +127,7 @@ trace.set_tracer_provider(TracerProvider(resource=resource))
 # Note: In production, the OTLP_ENDPOINT would be fetched from settings (e.g., http://otel-collector:4317)
 if settings.OTLP_ENDPOINT:
     otlp_exporter = OTLPSpanExporter(endpoint=settings.OTLP_ENDPOINT)
-    trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(otlp_exporter))
+    trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(otlp_exporter))  # type: ignore[attr-defined]
 FastAPIInstrumentor.instrument_app(app)
 
 # --- Middlewares ---
@@ -163,13 +164,15 @@ app.add_middleware(
 
 # Rate Limiting Middleware
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 app.add_middleware(SlowAPIMiddleware)
 
 
 # Request ID & Structured Logging Middleware
 @app.middleware("http")
-async def structlog_request_middleware(request: Request, call_next) -> Response:
+async def structlog_request_middleware(
+    request: Request, call_next: Callable[[Request], Any]
+) -> Response:
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
     structlog.contextvars.clear_contextvars()
     structlog.contextvars.bind_contextvars(
@@ -189,7 +192,7 @@ async def structlog_request_middleware(request: Request, call_next) -> Response:
             "Request completed", status_code=response.status_code, duration=process_time
         )
         response.headers["X-Request-ID"] = request_id
-        return response
+        return response  # type: ignore[no-any-return]
     except Exception as exc:
         process_time = time.perf_counter() - start_time
         logger.exception("Request failed", duration=process_time, error=str(exc))
@@ -234,4 +237,5 @@ app.include_router(chat_router, prefix=settings.API_V1_STR)
 app.include_router(tenants_router, prefix=settings.API_V1_STR)
 app.include_router(admin_router, prefix=settings.API_V1_STR)
 app.include_router(billing_router, prefix=settings.API_V1_STR)
+app.include_router(webhooks_router, prefix=settings.API_V1_STR)
 app.include_router(health_router)
