@@ -21,7 +21,7 @@ class Conversation(BaseModel, SoftDeleteMixin):
     collection_ids: Mapped[list[uuid.UUID]] = mapped_column(
         ARRAY(UUID(as_uuid=True)), default=list
     )
-    model_id: Mapped[str] = mapped_column(String(100))
+    model_id: Mapped[str] = mapped_column(String(100), default="qwen2.5-72b")
     settings: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     message_count: Mapped[int] = mapped_column(Integer, default=0)
 
