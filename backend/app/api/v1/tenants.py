@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
@@ -14,7 +15,7 @@ from app.services.tenant_provisioner import tenant_provisioner
 router = APIRouter(tags=["Super Admin (Tenants)"])
 
 
-def verify_super_admin(user: User = Depends(get_current_user)):
+def verify_super_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "super_admin":
         raise HTTPException(status_code=403, detail="Super Admin privileges required")
     return user
@@ -32,7 +33,7 @@ async def create_tenant(
     data: TenantCreateSchema,
     db: AsyncSession = Depends(get_db_session),
     admin: User = Depends(verify_super_admin),
-):
+) -> Any:
     """Provisions a new tenant ecosystem."""
     # Check if slug exists
     stmt = select(Tenant).where(Tenant.slug == data.slug)
@@ -53,7 +54,7 @@ async def create_tenant(
 async def list_tenants(
     db: AsyncSession = Depends(get_db_session),
     admin: User = Depends(verify_super_admin),
-):
+) -> Any:
     stmt = select(Tenant)
     result = await db.execute(stmt)
     return result.scalars().all()
@@ -64,7 +65,7 @@ async def suspend_tenant(
     tenant_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
     admin: User = Depends(verify_super_admin),
-):
+) -> dict[str, str]:
     tenant = await db.get(Tenant, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -79,7 +80,7 @@ async def reactivate_tenant(
     tenant_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
     admin: User = Depends(verify_super_admin),
-):
+) -> dict[str, str]:
     tenant = await db.get(Tenant, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -95,7 +96,7 @@ async def delete_tenant(
     hard_delete: bool = False,
     db: AsyncSession = Depends(get_db_session),
     admin: User = Depends(verify_super_admin),
-):
+) -> dict[str, str]:
     """
     Soft deletes or hard deletes a tenant.
     Hard delete destroys data in MinIO and Qdrant permanently.
@@ -111,7 +112,7 @@ async def impersonate_tenant(
     tenant_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
     admin: User = Depends(verify_super_admin),
-):
+) -> dict[str, str]:
     """
     Returns an access token allowing the Super Admin to act as a Tenant Admin.
     """
