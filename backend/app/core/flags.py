@@ -13,15 +13,18 @@ class FeatureFlags:
     Allows enabling/disabling features globally or per-tenant.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # We will initialize this with the actual Redis connection pool
-        self.redis = None
+        self.redis: Any = None
 
-    def init_app(self, redis_client: Any):
+    def init_app(self, redis_client: Any) -> None:
         self.redis = redis_client
 
     async def is_enabled(
-        self, feature_name: str, tenant_id: UUID | str = None, default: bool = False
+        self,
+        feature_name: str,
+        tenant_id: UUID | str | None = None,
+        default: bool = False,
     ) -> bool:
         """
         Check if a feature is enabled.
@@ -40,25 +43,25 @@ class FeatureFlags:
                     f"ff:tenant:{tenant_id}:{feature_name}"
                 )
                 if tenant_flag is not None:
-                    return json.loads(tenant_flag)
+                    return json.loads(tenant_flag)  # type: ignore[no-any-return]
 
             # 2. Check global flag
             global_flag = await self.redis.get(f"ff:global:{feature_name}")
             if global_flag is not None:
-                return json.loads(global_flag)
+                return json.loads(global_flag)  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error("Error reading feature flag from Redis", error=str(e))
 
         return default
 
-    async def set_global_flag(self, feature_name: str, value: bool):
+    async def set_global_flag(self, feature_name: str, value: bool) -> None:
         if self.redis:
             await self.redis.set(f"ff:global:{feature_name}", json.dumps(value))
 
     async def set_tenant_flag(
         self, feature_name: str, tenant_id: UUID | str, value: bool
-    ):
+    ) -> None:
         if self.redis:
             await self.redis.set(
                 f"ff:tenant:{tenant_id}:{feature_name}", json.dumps(value)
