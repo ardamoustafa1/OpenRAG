@@ -1,19 +1,31 @@
-import structlog
 import logging
 import sys
 from typing import Any, Dict
 
-def mask_sensitive_data(logger: logging.Logger, name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
+import structlog
+
+
+def mask_sensitive_data(
+    logger: logging.Logger, name: str, event_dict: Dict[str, Any]
+) -> Dict[str, Any]:
     """
     Masks sensitive information in log events.
     """
-    sensitive_keys = {"password", "token", "access_token", "api_key", "secret", "credit_card"}
-    
+    sensitive_keys = {
+        "password",
+        "token",
+        "access_token",
+        "api_key",
+        "secret",
+        "credit_card",
+    }
+
     for key, value in event_dict.items():
         if key.lower() in sensitive_keys and isinstance(value, str):
             event_dict[key] = "***MASKED***"
-            
+
     return event_dict
+
 
 def setup_logging(is_production: bool = False):
     """
@@ -47,17 +59,18 @@ def setup_logging(is_production: bool = False):
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
-    
+
     # Standard library logging configuration
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
         level=logging.INFO if is_production else logging.DEBUG,
     )
-    
+
     # Silence third-party noisy loggers
     logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
+
 
 setup_logging(is_production=False)

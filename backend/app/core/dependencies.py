@@ -1,19 +1,24 @@
 from typing import AsyncGenerator
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
-from jose import jwt, JWTError
+
+import jwt
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
+from jwt.exceptions import PyJWTError as JWTError
+from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from redis.asyncio import Redis
 
 from app.core.config import settings
 from app.core.db import get_db_session
 from app.core.security import is_token_blacklisted, verify_api_key
-from app.models.user import User, ApiKey
 from app.models.tenant import Tenant
+from app.models.user import ApiKey, User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False
+)
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
 
 # Redis dependency placeholder
 async def get_redis() -> AsyncGenerator[Redis, None]:
@@ -24,12 +29,13 @@ async def get_redis() -> AsyncGenerator[Redis, None]:
     finally:
         await client.close()
 
+
 async def get_current_user(
     request: Request,
     token: str | None = Depends(oauth2_scheme),
     api_key_val: str | None = Depends(api_key_header),
     db: AsyncSession = Depends(get_db_session),
-    redis: Redis = Depends(get_redis)
+    redis: Redis = Depends(get_redis),
 ) -> User:
     """
     Validate the token or API key and return the current active User.
@@ -48,12 +54,16 @@ async def get_current_user(
         parts = api_key_val.split(".", 1)
         if len(parts) == 2:
             prefix, raw_key = parts
-            stmt = select(ApiKey).where(ApiKey.key_prefix == prefix, ApiKey.is_active == True)
+            stmt = select(ApiKey).where(
+                ApiKey.key_prefix == prefix, ApiKey.is_active.is_(True)
+            )
             result = await db.execute(stmt)
             api_key_obj = result.scalars().first()
             if api_key_obj and verify_api_key(api_key_val, api_key_obj.key_hash):
                 # Retrieve user associated with the API key
-                stmt = select(User).where(User.id == api_key_obj.user_id, User.is_active == True)
+                stmt = select(User).where(
+                    User.id == api_key_obj.user_id, User.is_active.is_(True)
+                )
                 user = (await db.execute(stmt)).scalars().first()
 
     # 2. JWT Auth
@@ -62,7 +72,9 @@ async def get_current_user(
             raise HTTPException(status_code=401, detail="Token has been revoked")
 
         try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
             user_id: str = payload.get("sub")
             if user_id is None:
                 raise credentials_exception
@@ -70,7 +82,7 @@ async def get_current_user(
             if token_type != "access":
                 raise HTTPException(status_code=401, detail="Invalid token type")
         except JWTError:
-            raise credentials_exception
+            raise credentials_exception from None
 
         stmt = select(User).where(User.id == user_id)
         user = (await db.execute(stmt)).scalars().first()
@@ -85,9 +97,10 @@ async def get_current_user(
     request.state.tenant_id = user.tenant_id
     return user
 
+
 async def get_current_tenant(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ) -> Tenant:
     """Get the active tenant associated with the current user."""
     stmt = select(Tenant).where(Tenant.id == current_user.tenant_id)
@@ -96,8 +109,10 @@ async def get_current_tenant(
         raise HTTPException(status_code=403, detail="Tenant is inactive or not found")
     return tenant
 
+
 class RoleChecker:
     """Dependency class to check user roles."""
+
     def __init__(self, allowed_roles: list[str]):
         self.allowed_roles = allowed_roles
 
@@ -105,9 +120,10 @@ class RoleChecker:
         if user.role not in self.allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Operation not permitted for your role"
+                detail="Operation not permitted for your role",
             )
         return user
+
 
 def require_role(roles: list[str]) -> RoleChecker:
     """Returns a dependency that checks if the user has one of the required roles."""
