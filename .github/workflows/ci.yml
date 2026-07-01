@@ -92,7 +92,7 @@ jobs:
           CI: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build Backend Docker Image (Dry-run Multi-arch)
         run: docker buildx build --platform linux/amd64,linux/arm64 -t ai-backend:test ./backend
