@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import Request
 
 # from onelogin.saml2.auth import OneLogin_Saml2_Auth
@@ -12,7 +14,7 @@ class SAMLService:
     SAML 2.0 integration via python3-saml.
     """
 
-    def _prepare_fastapi_request(self, request: Request):
+    def _prepare_fastapi_request(self, request: Request) -> dict[str, Any]:
         """Converts a FastAPI Request to the format expected by python3-saml."""
         return {
             "https": "on" if request.url.scheme == "https" else "off",
@@ -22,7 +24,7 @@ class SAMLService:
             # POST data usually read dynamically during ACS
         }
 
-    def get_settings(self, tenant_settings: dict):
+    def get_settings(self, tenant_settings: dict[str, Any]) -> Any:
         """
         Generates the SAML settings dict dynamically per tenant.
         tenant_settings JSON should map to IdP and SP config.
@@ -31,7 +33,7 @@ class SAMLService:
         # return OneLogin_Saml2_Settings(settings=tenant_settings)
         pass
 
-    async def generate_metadata(self, tenant_settings: dict):
+    async def generate_metadata(self, tenant_settings: dict[str, Any]) -> str:
         """Generate SP XML metadata for the IdP."""
         # settings = self.get_settings(tenant_settings)
         # metadata = settings.get_sp_metadata()
@@ -40,8 +42,11 @@ class SAMLService:
         return "<xml>Mock SAML Metadata</xml>"
 
     async def consume_assertion(
-        self, request: Request, form_data: dict, tenant_settings: dict
-    ):
+        self,
+        request: Request,
+        form_data: dict[str, Any],
+        tenant_settings: dict[str, Any],
+    ) -> tuple[dict[str, Any], str]:
         """Process the SAMLResponse during the ACS callback."""
         # req = self._prepare_fastapi_request(request)
         # req['post_data'] = form_data
