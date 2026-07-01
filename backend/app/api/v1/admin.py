@@ -1,5 +1,6 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
-from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,13 +9,14 @@ from app.core.dependencies import get_current_tenant, get_current_user, get_redi
 from app.models.chat import Conversation
 from app.models.document import Document
 from app.models.tenant import Tenant
+from app.models.types import RedisClient
 from app.models.user import User
 from app.services.quota_manager import quota_manager
 
 router = APIRouter(tags=["Tenant Admin"])
 
 
-def verify_tenant_admin(user: User = Depends(get_current_user)):
+def verify_tenant_admin(user: User = Depends(get_current_user)) -> User:
     if user.role not in ["super_admin", "tenant_admin"]:
         raise HTTPException(status_code=403, detail="Tenant Admin privileges required")
     return user
@@ -25,8 +27,8 @@ async def get_dashboard_summary(
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
     admin: User = Depends(verify_tenant_admin),
-    redis: Redis = Depends(get_redis),
-):
+    redis: RedisClient = Depends(get_redis),
+) -> dict[str, Any]:
     """Returns aggregated metrics for the Tenant Admin Dashboard."""
 
     # User Count
@@ -59,17 +61,17 @@ async def get_dashboard_summary(
 async def get_settings(
     tenant: Tenant = Depends(get_current_tenant),
     admin: User = Depends(verify_tenant_admin),
-):
+) -> dict[str, Any]:
     return {"settings": tenant.settings}
 
 
 @router.patch("/admin/settings")
 async def update_settings(
-    settings_update: dict,
+    settings_update: dict[str, Any],
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
     admin: User = Depends(verify_tenant_admin),
-):
+) -> dict[str, Any]:
     # Merge existing settings with updates
     current = tenant.settings or {}
     current.update(settings_update)
@@ -87,7 +89,7 @@ async def register_webhook(
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
     admin: User = Depends(verify_tenant_admin),
-):
+) -> dict[str, str]:
     """Saves webhook config to tenant settings."""
     settings = tenant.settings or {}
     settings["webhook"] = {"url": url, "secret": secret}
@@ -112,7 +114,7 @@ async def register_webhook(
 async def get_detailed_usage(
     tenant: Tenant = Depends(get_current_tenant),
     admin: User = Depends(verify_tenant_admin),
-):
+) -> dict[str, Any]:
     """Returns quota limits vs current usage."""
     token_status = await quota_manager.check_quota(str(tenant.id), "tokens")
     doc_status = await quota_manager.check_quota(str(tenant.id), "documents")
