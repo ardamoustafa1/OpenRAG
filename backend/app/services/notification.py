@@ -1,3 +1,5 @@
+from typing import Any
+
 import httpx
 import structlog
 
@@ -12,7 +14,7 @@ class NotificationService:
     Handles Emails (SMTP/SES) and Webhooks.
     """
 
-    async def send_email(self, to_email: str, subject: str, html_content: str):
+    async def send_email(self, to_email: str, subject: str, html_content: str) -> None:
         """
         Sends an email using standard SMTP.
         (Placeholder logic until actual SMTP credentials are provided in .env)
@@ -36,8 +38,12 @@ class NotificationService:
         # )
 
     async def send_webhook(
-        self, url: str, event_type: str, payload: dict, secret: str = None
-    ):
+        self,
+        url: str,
+        event_type: str,
+        payload: dict[str, Any],
+        secret: str | None = None,
+    ) -> None:
         """
         Dispatches a webhook POST request.
         """
