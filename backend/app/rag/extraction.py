@@ -1,4 +1,5 @@
 import io
+from typing import Any
 
 import langdetect
 import structlog
@@ -17,7 +18,9 @@ class ExtractionService:
     using Unstructured.io.
     """
 
-    def process_file(self, file_bytes: bytes, filename: str, content_type: str) -> dict:
+    def process_file(
+        self, file_bytes: bytes, filename: str, content_type: str
+    ) -> dict[str, Any]:
         """
         Partition the document into structured elements (Title, NarrativeText, Table, etc.).
         """
@@ -34,8 +37,8 @@ class ExtractionService:
                 strategy="hi_res",  # Use high-resolution strategy for OCR/Tables
             )
 
-            cleaned_elements = []
-            full_text_for_lang = []
+            cleaned_elements: list[dict[str, Any]] = []
+            full_text_for_lang: list[str] = []
 
             for element in elements:
                 text = str(element)
