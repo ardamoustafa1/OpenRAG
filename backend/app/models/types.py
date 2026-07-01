@@ -1,13 +1,20 @@
 import base64
 import hashlib
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from cryptography.fernet import Fernet
+from redis.asyncio import Redis as _Redis
 from sqlalchemy import String, TypeDecorator
 
 from app.core.config import settings
 
 logger = structlog.get_logger()
+
+if TYPE_CHECKING:
+    RedisClient = _Redis[Any]
+else:
+    RedisClient = _Redis
 
 # We derive a 32-url-safe-base64 key from settings.SECRET_KEY for Fernet
 # If SECRET_KEY is changed, old data will be unreadable unless key rotation is implemented.
@@ -17,7 +24,7 @@ _fernet_key = base64.urlsafe_b64encode(
 _fernet = Fernet(_fernet_key)
 
 
-class EncryptedString(TypeDecorator):
+class EncryptedString(TypeDecorator[Any]):
     """
     SQLAlchemy TypeDecorator that seamlessly encrypts data on write and
     decrypts it on read using Fernet symmetric encryption.
@@ -26,7 +33,7 @@ class EncryptedString(TypeDecorator):
     impl = String
     cache_ok = True
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(self, value: str | None, dialect: Any) -> str | None:
         if value is None:
             return None
         try:
@@ -35,7 +42,7 @@ class EncryptedString(TypeDecorator):
             logger.error("Failed to encrypt value", error=str(e))
             raise ValueError("Encryption failed") from e
 
-    def process_result_value(self, value, dialect):
+    def process_result_value(self, value: str | None, dialect: Any) -> str | None:
         if value is None:
             return None
         try:
