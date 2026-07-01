@@ -108,7 +108,7 @@ class TenantProvisioner:
 
     async def deprovision_tenant(
         self, db: AsyncSession, tenant_id: uuid.UUID, hard_delete: bool = False
-    ):
+    ) -> None:
         """
         Cleans up tenant resources.
         By default, we just mark them as suspended/inactive (Soft Delete).
