@@ -1,7 +1,7 @@
 # ============================================================
 # Stage 1: Builder — install all dependencies
 # ============================================================
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -28,7 +28,7 @@ RUN pip install --upgrade pip && pip install "."
 # ============================================================
 # Stage 2: Runtime — lean production image
 # ============================================================
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
