@@ -1,3 +1,4 @@
+name: openrag
 
 services:
   # ----------------------------------------
@@ -54,7 +55,7 @@ services:
   # Redis Stack (For Queue, Cache, Vector Search)
   # ----------------------------------------
   redis:
-    image: redis/redis-stack-server:latest
+    image: redis/redis-stack-server:7.2.0-v10
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -75,11 +76,7 @@ services:
       - qdrant_data:/qdrant/storage
     networks:
       - rag_network
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:6333/readyz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    # Healthcheck removed as qdrant image lacks curl/wget
 
   # ----------------------------------------
   # Object Storage (MinIO)
@@ -89,7 +86,7 @@ services:
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-admin123}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?error MINIO_ROOT_PASSWORD must be set}
     volumes:
       - minio_data:/data
     networks:
@@ -104,7 +101,7 @@ services:
   # Local LLM Engine (Ollama)
   # ----------------------------------------
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.1.32
     volumes:
       - ollama_data:/root/.ollama
     networks:
@@ -198,13 +195,29 @@ services:
   # ----------------------------------------
   # Tracing & Eval (Langfuse)
   # ----------------------------------------
+  langfuse_postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: ${LANGFUSE_DB_PASSWORD:?error LANGFUSE_DB_PASSWORD must be set}
+      POSTGRES_DB: langfuse
+    volumes:
+      - langfuse_db_data:/var/lib/postgresql/data
+    networks:
+      - rag_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   langfuse:
     image: langfuse/langfuse:2.55.0
     depends_on:
-      postgres:
+      langfuse_postgres:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rag_db}
+      - DATABASE_URL=postgresql://langfuse:${LANGFUSE_DB_PASSWORD}@langfuse_postgres:5432/langfuse
       - NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET:?LANGFUSE_NEXTAUTH_SECRET must be set}
       - SALT=${LANGFUSE_SALT:?LANGFUSE_SALT must be set}
       - NEXTAUTH_URL=http://langfuse.localhost
@@ -234,16 +247,16 @@ services:
       - ./backend:/app # Hot-reload source code
     environment:
       - ENVIRONMENT=development
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/rag_db
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?error POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-rag_db}
       - REDIS_URL=redis://redis:6379/0
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-admin}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-admin123}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?error MINIO_SECRET_KEY must be set}
       - OLLAMA_BASE_URL=http://ollama:11434
       - LITELLM_BASE_URL=http://litellm:4000
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-use-openssl-rand-hex-32}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set}
       - CORS_ALLOW_ORIGINS=["http://localhost:3000","http://localhost:3001"]
     depends_on:
       postgres:
@@ -275,15 +288,15 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/rag_db
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?error POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-rag_db}
       - REDIS_URL=redis://redis:6379/0
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-admin}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-admin123}
-      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
-      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:?error MINIO_SECRET_KEY must be set}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:?error LANGFUSE_PUBLIC_KEY must be set}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:?error LANGFUSE_SECRET_KEY must be set}
       - LANGFUSE_HOST=http://langfuse:3000
       - OLLAMA_BASE_URL=http://ollama:11434
       - LITELLM_BASE_URL=http://litellm:4000
@@ -303,6 +316,7 @@ services:
     command: celery -A app.workers.celery_app beat --loglevel=info
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set}
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://ollama:11434
       - LITELLM_BASE_URL=http://litellm:4000
@@ -365,15 +379,15 @@ services:
   # LiteLLM Orchestration Proxy
   # ----------------------------------------
   litellm:
-    image: ghcr.io/berriai/litellm:main-latest
+    image: ghcr.io/berriai/litellm:main-v1.35.0
     volumes:
       - ./infra/litellm/config.yaml:/app/config.yaml
     command: [ "--config", "/app/config.yaml", "--port", "4000", "--num_workers", "8" ]
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
-      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:?error LANGFUSE_PUBLIC_KEY must be set}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:?error LANGFUSE_SECRET_KEY must be set}
       - LANGFUSE_HOST=http://langfuse:3000
     depends_on:
       - redis
@@ -384,6 +398,24 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.litellm.rule=Host(`litellm.localhost`)"
       - "traefik.http.services.litellm.loadbalancer.server.port=4000"
+
+  # ----------------------------------------
+  # Frontend UI (Next.js)
+  # ----------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api.localhost
+    networks:
+      - rag_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`localhost`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
 
 networks:
   rag_network:
@@ -399,3 +431,4 @@ volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  langfuse_db_data:

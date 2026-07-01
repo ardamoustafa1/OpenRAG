@@ -61,6 +61,10 @@ USER appuser
 
 EXPOSE 8000
 
-# Production: use gunicorn + uvicorn workers for better concurrency
+# Health check — allows Docker and orchestrators to verify the container is ready
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl --fail http://localhost:8000/health || exit 1
+
+# Production: use uvicorn with multiple workers for better concurrency
 # For development, override CMD with uvicorn --reload via docker-compose
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

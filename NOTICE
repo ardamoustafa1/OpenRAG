@@ -1,4 +1,4 @@
-Enterprise RAG AI Platform
+OpenRAG
 Copyright 2026 OpenRAG Team
 
 This product includes software developed by the Apache Software Foundation (http://www.apache.org/).
@@ -6,20 +6,47 @@ This product relies on various open-source third-party dependencies. We extend o
 
 ## Third-Party Software and Licenses
 
+### Core Backend
+
+- **FastAPI** (MIT License)
+  https://github.com/tiangolo/fastapi
+
+- **Uvicorn** (BSD License)
+  https://github.com/encode/uvicorn
+
+- **SQLAlchemy** (MIT License)
+  https://github.com/sqlalchemy/sqlalchemy
+
+- **Alembic** (MIT License)
+  https://github.com/sqlalchemy/alembic
+
+- **Pydantic** (MIT License)
+  https://github.com/pydantic/pydantic
+
+### AI / ML / RAG
+
 - **unstructured** (Apache License 2.0)
   https://github.com/Unstructured-IO/unstructured
 
 - **sentence-transformers** (Apache License 2.0)
   https://github.com/UKPLab/sentence-transformers
 
+- **rank_bm25** (Apache License 2.0)
+  https://github.com/dorianbrown/rank_bm25
+
+- **LiteLLM** (MIT License)
+  https://github.com/BerriAI/litellm
+
 - **Langfuse** (MIT License)
   https://github.com/langfuse/langfuse
 
-- **FastAPI** (MIT License)
-  https://github.com/tiangolo/fastapi
+- **RAGAS** (Apache License 2.0)
+  https://github.com/explodinggradients/ragas
 
-- **Next.js** (MIT License)
-  https://github.com/vercel/next.js
+### Infrastructure
+
+- **Qdrant** (Apache License 2.0)
+  https://github.com/qdrant/qdrant
 
 - **vLLM** (Apache License 2.0)
   https://github.com/vllm-project/vllm
@@ -27,4 +54,74 @@ This product relies on various open-source third-party dependencies. We extend o
 - **Ollama** (MIT License)
   https://github.com/ollama/ollama
 
-For a complete list of dependencies and their licenses, refer to the `pyproject.toml` (Backend) and `package.json` (Frontend/SDKs) files.
+- **Celery** (BSD License)
+  https://github.com/celery/celery
+
+- **MinIO Python SDK** (Apache License 2.0)
+  https://github.com/minio/minio-py
+
+### Security & Auth
+
+- **python-jose** (MIT License)
+  https://github.com/mpdavis/python-jose
+
+- **passlib** (BSD License)
+  https://passlib.readthedocs.io/
+
+- **PyOTP** (MIT License)
+  https://github.com/pyauth/pyotp
+
+- **Authlib** (BSD License)
+  https://github.com/lepture/authlib
+
+- **python3-saml** (MIT License)
+  https://github.com/onelogin/python3-saml
+
+- **SlowAPI** (MIT License)
+  https://github.com/laurentS/slowapi
+
+### Observability
+
+- **OpenTelemetry Python** (Apache License 2.0)
+  https://github.com/open-telemetry/opentelemetry-python
+
+- **prometheus-client** (Apache License 2.0)
+  https://github.com/prometheus/client_python
+
+- **structlog** (Apache License 2.0 / MIT)
+  https://github.com/hynek/structlog
+
+- **pybreaker** (BSD License)
+  https://github.com/danielfm/pybreaker
+
+### Frontend
+
+- **Next.js** (MIT License)
+  https://github.com/vercel/next.js
+
+- **React** (MIT License)
+  https://github.com/facebook/react
+
+- **Tailwind CSS** (MIT License)
+  https://github.com/tailwindlabs/tailwindcss
+
+- **shadcn/ui** (MIT License)
+  https://github.com/shadcn-ui/ui
+
+- **Lucide React** (ISC License)
+  https://github.com/lucide-icons/lucide
+
+- **next-auth** (ISC License)
+  https://github.com/nextauthjs/next-auth
+
+- **TanStack Query** (MIT License)
+  https://github.com/TanStack/query
+
+- **Sonner** (MIT License)
+  https://github.com/emilkowalski/sonner
+
+For a complete list of transitive dependencies and their licenses, refer to:
+- Backend: `backend/pyproject.toml`
+- Frontend: `frontend/package.json`
+- Python SDK: `sdk/python/pyproject.toml`
+- TypeScript SDK: `sdk/typescript/package.json`

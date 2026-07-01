@@ -1,0 +1,43 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "Next.js Placeholder Dashboard",
+      "type": "text",
+      "options": {
+        "content": "# Next.js Web Vitals\nThis is a placeholder dashboard. You can import community dashboards (like 15152) to track Next.js Core Web Vitals and SSR timings.",
+        "mode": "markdown"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["nextjs", "frontend"],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Next.js App Metrics",
+  "uid": "nextjs_metrics",
+  "version": 1
+}

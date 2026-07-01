@@ -1,0 +1,113 @@
+name: 🐛 Bug Report
+description: Report a reproducible bug or unexpected behavior in OpenRAG
+title: "[BUG] "
+labels: ["bug", "triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! Please be as detailed as possible.
+        Before submitting, please search [existing issues](https://github.com/ardamoustafa1/OpenRAG/issues) to avoid duplicates.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of OpenRAG is affected?
+      multiple: true
+      options:
+        - Backend API (FastAPI)
+        - Frontend UI (Next.js)
+        - RAG Pipeline (retrieval, chunking, embedding)
+        - Authentication / SSO
+        - Celery Workers / Ingestion
+        - Docker / Docker Compose
+        - Helm / Kubernetes
+        - Python SDK
+        - TypeScript SDK
+        - Observability (Prometheus/Grafana/Langfuse)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: "When I do X, Y happens instead of Z..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Provide minimal steps to reproduce the behavior.
+      placeholder: |
+        1. Start services with `make up`
+        2. Upload a document via the UI
+        3. Try to query...
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs / Errors
+      description: Paste any relevant logs. Use `docker compose logs -f` or `make logs`.
+      render: shell
+
+  - type: input
+    id: openrag-version
+    attributes:
+      label: OpenRAG Version
+      description: What version are you running? (Check `git log --oneline -1` or the release tag)
+      placeholder: "v0.1.0 / main branch"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Please provide your environment details.
+      placeholder: |
+        - OS: Ubuntu 22.04 / macOS 14 / Windows WSL2
+        - Docker: 25.0.3
+        - Docker Compose: v2.24.6
+        - Python: 3.12
+        - Node.js: 20.x
+        - GPU: NVIDIA A10G / None
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I have read the [documentation](https://github.com/ardamoustafa1/OpenRAG/tree/main/docs)
+          required: true
+        - label: I have included relevant logs and environment details
+          required: true

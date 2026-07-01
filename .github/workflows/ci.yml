@@ -34,8 +34,15 @@ jobs:
         working-directory: ./backend
 
       - name: Unit Tests with Coverage
-        run: pytest tests/unit/ -n auto --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=70
+        run: pytest tests/unit/ -n auto --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=80
         working-directory: ./backend
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./backend/coverage.xml
+          flags: backend-unit
+          fail_ci_if_error: false
 
       - name: Security Scan (Bandit)
         run: bandit -r app/ -ll
@@ -72,12 +79,23 @@ jobs:
         run: npm audit --audit-level=high
         working-directory: ./frontend
 
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: ./frontend
+
       - name: Run Playwright tests
         run: npx playwright test
         working-directory: ./frontend
+        env:
+          # Skip E2E tests if backend not available (CI without full stack)
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          CI: true
 
-      - name: Build Backend Docker Image (Dry-run)
-        run: docker build -t ai-backend:test ./backend
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend Docker Image (Dry-run Multi-arch)
+        run: docker buildx build --platform linux/amd64,linux/arm64 -t ai-backend:test ./backend
 
       - name: Scan Backend Image with Trivy
         uses: aquasecurity/trivy-action@master
@@ -157,4 +175,22 @@ jobs:
         
       - name: Run Integration Tests
         run: pytest tests/integration/ -v
+        working-directory: ./backend
+
+      - name: Start Backend Services
+        run: |
+          docker compose -f ../docker-compose.yml up -d postgres redis qdrant minio
+          sleep 10
+          export DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/rag_db
+          export REDIS_URL=redis://localhost:6379/0
+          export SECRET_KEY=dummy
+          export MINIO_SECRET_KEY=dummy
+          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 10
+        working-directory: ./backend
+
+      - name: Run Performance Baseline (Locust)
+        run: |
+          pip install locust
+          locust -f tests/performance/locustfile.py --headless -u 10 -r 2 -t 15s --host=http://localhost:8000
         working-directory: ./backend

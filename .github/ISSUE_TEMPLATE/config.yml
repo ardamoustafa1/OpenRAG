@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Community Discussion
+    url: https://github.com/ardamoustafa1/OpenRAG/discussions
+    about: Ask questions, share ideas, and discuss OpenRAG with the community.
+  - name: 🔒 Security Vulnerability
+    url: https://github.com/ardamoustafa1/OpenRAG/security/advisories/new
+    about: Please report security vulnerabilities privately using GitHub's advisory system.
+  - name: 📚 Documentation
+    url: https://github.com/ardamoustafa1/OpenRAG/tree/main/docs
+    about: Check the documentation before opening an issue.

@@ -1,4 +1,4 @@
-# Contributing to Enterprise RAG AI Platform
+# Contributing to OpenRAG
 
 Thank you for your interest in contributing! This document explains how to participate effectively.
 

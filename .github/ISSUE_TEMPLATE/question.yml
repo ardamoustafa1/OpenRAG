@@ -1,0 +1,33 @@
+name: ❓ Question / Help
+description: Ask a question or get help with OpenRAG configuration
+title: "[QUESTION] "
+labels: ["question"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before asking, please check:
+        - 📚 [Documentation](https://github.com/ardamoustafa1/OpenRAG/tree/main/docs)
+        - 💬 [Existing Discussions](https://github.com/ardamoustafa1/OpenRAG/discussions)
+        - 🔍 [Search existing issues](https://github.com/ardamoustafa1/OpenRAG/issues)
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / What You've Tried
+      description: What have you already tried? What does your setup look like?
+
+  - type: input
+    id: version
+    attributes:
+      label: OpenRAG Version
+      placeholder: "v0.1.0 / main"

@@ -71,4 +71,26 @@ jobs:
             exit 1
           fi
           echo "Smoke tests passed!"
-          echo "Smoke tests passed!"
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: build-and-deploy
+    environment:
+      name: production
+      url: https://openrag.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+
+      - name: Deploy to Production
+        env:
+          KUBECONFIG: ${{ secrets.PROD_KUBECONFIG }}
+        run: |
+          helm upgrade --install ai-platform infra/helm/ai-platform \
+            --namespace production --create-namespace \
+            --set backend.image.tag=${{ github.sha }} \
+            --set frontend.image.tag=${{ github.sha }} \
+            --set global.environment=production \
+            --atomic --timeout 10m

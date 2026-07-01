@@ -17,12 +17,11 @@
 - [x] Helm charts for Kubernetes deployment
 - [x] CI/CD with Trivy, Bandit, Mypy, ESLint
 - [x] Python + TypeScript SDK scaffolding
+- [x] BM25 Sparse Retrieval (Full Reciprocal Rank Fusion merge)
 
 ---
 
 ## 🚧 v0.2.0 — Hybrid Retrieval & Accuracy (Q3 2026)
-
-- [ ] **BM25 Sparse Retrieval** — Full Reciprocal Rank Fusion (RRF) merge with dense results
 - [ ] **Query Rewriting** — Multi-query generation for broader recall
 - [ ] **Cross-Encoder Reranking** — Replace heuristic reranker with dedicated reranking model
 - [ ] **Citation Highlighting** — Exact sentence-level citation anchoring in UI

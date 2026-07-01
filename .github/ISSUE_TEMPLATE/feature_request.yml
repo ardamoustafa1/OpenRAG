@@ -1,0 +1,79 @@
+name: 🚀 Feature Request
+description: Propose a new feature or enhancement for OpenRAG
+title: "[FEAT] "
+labels: ["enhancement", "feature-request"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting an improvement to OpenRAG! Please check the [ROADMAP](https://github.com/ardamoustafa1/OpenRAG/blob/main/ROADMAP.md) before submitting to see if it's already planned.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      description: Which area does this feature relate to?
+      options:
+        - RAG / Retrieval Pipeline
+        - Multi-Tenancy / Isolation
+        - Authentication / Security
+        - Document Ingestion
+        - Frontend / UI
+        - Observability / Monitoring
+        - Kubernetes / Helm / Infrastructure
+        - SDK (Python or TypeScript)
+        - API / Webhooks
+        - Performance
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem are you trying to solve? Who is affected?
+      placeholder: "As an enterprise admin, I cannot configure X which means I have to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your ideal solution, including any API changes or UI mockups.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any workarounds or alternative approaches?
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (from your perspective)
+      options:
+        - 🔥 Critical — blocking production use
+        - 🔴 High — significant workflow impact
+        - 🟡 Medium — nice to have
+        - 🟢 Low — minor improvement
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any mockups, references, related issues, or implementation ideas.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have checked the [ROADMAP](https://github.com/ardamoustafa1/OpenRAG/blob/main/ROADMAP.md) and this is not already planned
+          required: true
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
