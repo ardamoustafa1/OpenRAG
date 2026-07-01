@@ -1,10 +1,16 @@
-from typing import Any
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
+
+if TYPE_CHECKING:
+    from app.models.billing import TenantSubscription
+    from app.models.user import ApiKey, User
+
 
 class Tenant(BaseModel):
     __tablename__ = "tenants"

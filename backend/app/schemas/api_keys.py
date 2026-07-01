@@ -1,15 +1,18 @@
 from datetime import datetime
-from typing import Any
 from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict
+
 
 class ApiKeyBase(BaseModel):
     name: str
-    permissions: list[Any] = []
+    permissions: list[str] = []
     expires_at: datetime | None = None
+
 
 class ApiKeyCreate(ApiKeyBase):
     pass
+
 
 class ApiKeyCreateResponse(ApiKeyBase):
     id: UUID
@@ -19,10 +22,12 @@ class ApiKeyCreateResponse(ApiKeyBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class ApiKeyUpdate(BaseModel):
     name: str | None = None
-    permissions: list[Any] | None = None
+    permissions: list[str] | None = None
     is_active: bool | None = None
+
 
 class ApiKeyResponse(ApiKeyBase):
     id: UUID

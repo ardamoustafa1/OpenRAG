@@ -1,18 +1,25 @@
 import uuid
-from typing import Any
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, ForeignKey, UniqueConstraint
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel, SoftDeleteMixin
 from app.models.types import EncryptedString
 
+if TYPE_CHECKING:
+    from app.models.tenant import Tenant
+
+
 class User(BaseModel, SoftDeleteMixin):
     __tablename__ = "users"
-    __table_args__ = (UniqueConstraint('tenant_id', 'email', name='uq_tenant_email'),)
+    __table_args__ = (UniqueConstraint("tenant_id", "email", name="uq_tenant_email"),)
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
     email: Mapped[str] = mapped_column(String(255), index=True)
     name: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(50), default="viewer")
@@ -32,8 +39,12 @@ class User(BaseModel, SoftDeleteMixin):
 class ApiKey(BaseModel):
     __tablename__ = "api_keys"
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
-    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
     name: Mapped[str] = mapped_column(String(255))
     key_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     key_prefix: Mapped[str] = mapped_column(String(8))

@@ -1,25 +1,27 @@
 from fastapi import Request
+
 # from onelogin.saml2.auth import OneLogin_Saml2_Auth
 # from onelogin.saml2.settings import OneLogin_Saml2_Settings
 
 # Note: python3-saml requires python-saml/onelogin.saml2.
 # We will create a wrapper class to handle dynamic multi-tenant SAML settings.
 
+
 class SAMLService:
     """
     SAML 2.0 integration via python3-saml.
     """
-    
+
     def _prepare_fastapi_request(self, request: Request):
         """Converts a FastAPI Request to the format expected by python3-saml."""
         return {
-            'https': 'on' if request.url.scheme == 'https' else 'off',
-            'http_host': request.headers.get('host'),
-            'script_name': request.url.path,
-            'get_data': dict(request.query_params),
+            "https": "on" if request.url.scheme == "https" else "off",
+            "http_host": request.headers.get("host"),
+            "script_name": request.url.path,
+            "get_data": dict(request.query_params),
             # POST data usually read dynamically during ACS
         }
-    
+
     def get_settings(self, tenant_settings: dict):
         """
         Generates the SAML settings dict dynamically per tenant.
@@ -37,7 +39,9 @@ class SAMLService:
         # if not errors: return metadata
         return "<xml>Mock SAML Metadata</xml>"
 
-    async def consume_assertion(self, request: Request, form_data: dict, tenant_settings: dict):
+    async def consume_assertion(
+        self, request: Request, form_data: dict, tenant_settings: dict
+    ):
         """Process the SAMLResponse during the ACS callback."""
         # req = self._prepare_fastapi_request(request)
         # req['post_data'] = form_data
@@ -47,8 +51,9 @@ class SAMLService:
         # if not errors and auth.is_authenticated():
         #     return auth.get_attributes(), auth.get_nameid()
         # raise Exception(auth.get_last_error_reason())
-        
+
         # Mock Return
         return {"email": ["user@example.com"], "groups": ["admin"]}, "user@example.com"
+
 
 saml_service = SAMLService()

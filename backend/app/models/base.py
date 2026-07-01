@@ -1,10 +1,10 @@
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import MetaData, inspect
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.ext.asyncio import AsyncAttrs
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Recommended naming convention used by Alembic
 convention = {
@@ -16,19 +16,17 @@ convention = {
 }
 metadata = MetaData(naming_convention=convention)
 
+
 class BaseModel(AsyncAttrs, DeclarativeBase):
     """
     Base class for all SQLAlchemy 2.0 declarative models.
     Provides common columns: id, created_at, updated_at
     """
+
     metadata = metadata
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        primary_key=True, default=uuid.uuid4
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(UTC)
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
         default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
@@ -40,6 +38,8 @@ class BaseModel(AsyncAttrs, DeclarativeBase):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}(id={self.id})>"
 
+
 class SoftDeleteMixin:
     """Mixin to add soft-delete capability."""
+
     deleted_at: Mapped[datetime | None] = mapped_column(default=None)

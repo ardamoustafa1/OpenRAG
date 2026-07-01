@@ -3,8 +3,9 @@ from fastapi import Request
 from starlette.config import Config
 
 # This is a dynamic factory approach for multi-tenant OIDC.
-# Normally, Authlib uses a static Config, but for multi-tenant, 
+# Normally, Authlib uses a static Config, but for multi-tenant,
 # we configure OAuth dynamically per request/tenant.
+
 
 class OIDCService:
     def __init__(self):
@@ -23,15 +24,13 @@ class OIDCService:
             oauth = OAuth(Config(environ=oidc_settings))
             oauth.register(
                 name=tenant_slug,
-                client_id=oidc_settings.get('client_id'),
-                client_secret=oidc_settings.get('client_secret'),
-                server_metadata_url=oidc_settings.get('server_metadata_url'),
-                client_kwargs={
-                    'scope': 'openid email profile'
-                }
+                client_id=oidc_settings.get("client_id"),
+                client_secret=oidc_settings.get("client_secret"),
+                server_metadata_url=oidc_settings.get("server_metadata_url"),
+                client_kwargs={"scope": "openid email profile"},
             )
             self.oauth_clients[tenant_slug] = getattr(oauth, tenant_slug)
-        
+
         return self.oauth_clients[tenant_slug]
 
     async def generate_login_url(self, client, request: Request, redirect_uri: str):
@@ -41,8 +40,9 @@ class OIDCService:
     async def verify_callback(self, client, request: Request):
         """Exchanges the authorization code for an access token and user info."""
         token = await client.authorize_access_token(request)
-        userinfo = token.get('userinfo')
+        userinfo = token.get("userinfo")
         # userinfo typically contains: sub, name, email, etc.
         return userinfo
+
 
 oidc_service = OIDCService()

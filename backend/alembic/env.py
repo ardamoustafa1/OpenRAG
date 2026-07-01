@@ -1,20 +1,19 @@
 import asyncio
-import os
 import sys
-from pathlib import Path
 from logging.config import fileConfig
+from pathlib import Path
 
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
-from sqlalchemy.ext.asyncio import async_engine_from_config, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
+
 from alembic import context
 
 # Add backend directory to sys.path so app imports work
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.models import BaseModel
 from app.core.config import settings
+from app.models import BaseModel
 
 config = context.config
 
@@ -25,6 +24,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = BaseModel.metadata
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
@@ -42,7 +42,7 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations_sync(connection: Connection) -> None:
     context.configure(
-        connection=connection, 
+        connection=connection,
         target_metadata=target_metadata,
         compare_type=True,
     )

@@ -1,11 +1,13 @@
 from celery import Celery
+from celery.schedules import crontab
+
 from app.core.config import settings
 
 celery_app = Celery(
     "enterprise_rag_worker",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.workers.ingestion_tasks"]
+    include=["app.workers.ingestion_tasks"],
 )
 
 celery_app.conf.update(
@@ -21,15 +23,13 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
 )
 
-from celery.schedules import crontab
-
 celery_app.conf.beat_schedule = {
-    'reset-monthly-quotas-1st-of-month': {
-        'task': 'app.workers.scheduled_tasks.reset_monthly_quotas_task',
-        'schedule': crontab(0, 0, day_of_month='1'),
+    "reset-monthly-quotas-1st-of-month": {
+        "task": "app.workers.scheduled_tasks.reset_monthly_quotas_task",
+        "schedule": crontab(0, 0, day_of_month="1"),
     },
-    'send-usage-summary-emails-daily': {
-        'task': 'app.workers.scheduled_tasks.send_usage_summary_emails_task',
-        'schedule': crontab(0, 8, '*'),
+    "send-usage-summary-emails-daily": {
+        "task": "app.workers.scheduled_tasks.send_usage_summary_emails_task",
+        "schedule": crontab(0, 8, "*"),
     },
 }

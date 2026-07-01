@@ -1,16 +1,18 @@
-import asyncio
-import os
 import json
+import os
+
 from datasets import Dataset
 from ragas import evaluate
 from ragas.metrics import (
+    answer_relevancy,
     context_precision,
     context_recall,
-    answer_relevancy,
-    faithfulness
+    faithfulness,
 )
+
 # Make sure OPENAI_API_KEY is set in environment for standard RAGAS evaluation,
 # or configure custom local LLMs via Langchain embeddings.
+
 
 def run_evaluation(test_dataset_path: str, output_path: str):
     """
@@ -22,15 +24,17 @@ def run_evaluation(test_dataset_path: str, output_path: str):
     - ground_truth
     """
     print(f"Loading dataset from {test_dataset_path}")
-    
+
     if not os.path.exists(test_dataset_path):
-        print(f"Error: Dataset {test_dataset_path} not found. Please generate it first.")
+        print(
+            f"Error: Dataset {test_dataset_path} not found. Please generate it first."
+        )
         # Create a dummy dataset structure to guide the user
         dummy_data = {
             "question": ["What is the SLA?"],
             "answer": ["The SLA is 99.9% uptime."],
             "contexts": [["Our enterprise policy dictates a 99.9% SLA."]],
-            "ground_truth": ["99.9% uptime"]
+            "ground_truth": ["99.9% uptime"],
         }
         dataset = Dataset.from_dict(dummy_data)
         print("Using dummy dataset for demonstration.")
@@ -58,14 +62,26 @@ def run_evaluation(test_dataset_path: str, output_path: str):
         # Convert result to pandas dataframe, then to json
         df = result.to_pandas()
         df.to_json(f, orient="records", indent=2)
-        
+
     print(f"\nSaved detailed results to {output_path}")
+
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Run Ragas Evaluation")
-    parser.add_argument("--dataset", type=str, default="rag_test_dataset.json", help="Path to evaluation dataset")
-    parser.add_argument("--output", type=str, default="rag_evaluation_results.json", help="Output path for results")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="rag_test_dataset.json",
+        help="Path to evaluation dataset",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="rag_evaluation_results.json",
+        help="Output path for results",
+    )
     args = parser.parse_args()
-    
+
     run_evaluation(args.dataset, args.output)

@@ -1,11 +1,16 @@
 import uuid
-from typing import Any
 from datetime import datetime
-from sqlalchemy import String, Integer, Numeric, DateTime, ForeignKey
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
+
+if TYPE_CHECKING:
+    from app.models.tenant import Tenant
+
 
 class BillingPlan(BaseModel):
     __tablename__ = "billing_plans"
@@ -23,10 +28,14 @@ class BillingPlan(BaseModel):
 class TenantSubscription(BaseModel):
     __tablename__ = "tenant_subscriptions"
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
     plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("billing_plans.id"))
     status: Mapped[str] = mapped_column(String(50))
-    current_period_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    current_period_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(255))
     stripe_customer_id: Mapped[str | None] = mapped_column(String(255))
