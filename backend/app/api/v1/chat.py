@@ -1,6 +1,7 @@
 import asyncio
 import json
 import uuid
+from typing import Any, AsyncGenerator
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -41,7 +42,7 @@ async def create_conversation(
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
     user: User = Depends(get_current_user),
-):
+) -> Any:
     conv = Conversation(tenant_id=tenant.id, user_id=user.id, title=title)
     db.add(conv)
     await db.commit()
@@ -58,7 +59,7 @@ async def send_message(
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
     user: User = Depends(get_current_user),
-):
+) -> EventSourceResponse:
     """
     Sends a message to a conversation and streams the SSE response.
     Includes full RAG pipeline execution.
@@ -77,19 +78,19 @@ async def send_message(
     await db.commit()
 
     # 3. Retrieve Chat History
-    stmt = (
+    msg_stmt = (
         select(Message)
         .where(Message.conversation_id == conv.id)
         .order_by(Message.created_at.asc())
     )
-    history = (await db.execute(stmt)).scalars().all()
+    history = (await db.execute(msg_stmt)).scalars().all()
 
     messages = [{"role": m.role, "content": m.content} for m in history]
 
     # 4. Truncate context if too long
     messages = token_counter.truncate_context(messages, max_tokens=3000)
 
-    async def sse_generator():
+    async def sse_generator() -> AsyncGenerator[Any, None]:
         # Pipeline execution inside the generator
         try:
             # A. Retrieve
@@ -128,15 +129,19 @@ async def send_message(
             )
 
             async for chunk in generator:
-                yield chunk
-
-                if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
+                if chunk.startswith("data: "):
+                    data_str = chunk[6:].strip()
+                    if data_str == "[DONE]":
+                        break
                     try:
-                        data_json = json.loads(chunk[6:].strip())
-                        if data_json.get("type") == "token":
-                            full_response += data_json.get("content", "")
+                        data_obj = json.loads(data_str)
+                        if "choices" in data_obj:
+                            delta = data_obj["choices"][0].get("delta", {})
+                            content = delta.get("content", "")
+                            full_response += content
                     except Exception:
                         pass
+                yield chunk
 
             # Save assistant response to DB in a new session
             if full_response:
@@ -144,7 +149,10 @@ async def send_message(
 
                 async with async_session_factory() as local_db:
                     assistant_msg = Message(
-                        conversation_id=conv.id, role="assistant", content=full_response
+                        conversation_id=conv.id,
+                        role="assistant",
+                        content=full_response,
+                        sources=sources,
                     )
                     local_db.add(assistant_msg)
                     await local_db.commit()
@@ -162,10 +170,10 @@ async def quick_chat(
     request: Request,
     tenant: Tenant = Depends(get_current_tenant),
     user: User = Depends(get_current_user),
-):
+) -> EventSourceResponse:
     """Stateless chat completion without saving to DB."""
 
-    async def sse_generator():
+    async def sse_generator() -> AsyncGenerator[Any, None]:
         retrieved = await retriever.retrieve(
             query=payload.content,
             tenant_id=str(tenant.id),
