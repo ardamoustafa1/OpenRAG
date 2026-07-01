@@ -14,7 +14,7 @@ logger = structlog.get_logger()
 class StorageService:
     """Wrapper around MinIO (S3 compatible) for document storage."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.client = Minio(
             endpoint=settings.MINIO_ENDPOINT,
             access_key=settings.MINIO_ACCESS_KEY,
@@ -24,7 +24,7 @@ class StorageService:
         self.bucket_name = settings.MINIO_BUCKET_NAME
         self._bucket_checked = False
 
-    def _ensure_bucket(self):
+    def _ensure_bucket(self) -> None:
         """Ensure the target bucket exists, create if not."""
         if self._bucket_checked:
             return
@@ -103,7 +103,7 @@ class StorageService:
             )
             raise
 
-    def delete_file(self, object_name: str):
+    def delete_file(self, object_name: str) -> None:
         """Delete an object from MinIO."""
         try:
             self.client.remove_object(self.bucket_name, object_name)
