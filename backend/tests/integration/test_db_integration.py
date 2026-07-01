@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -35,7 +36,7 @@ def engine(postgres_container):
     yield engine
 
 
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function")
 async def db_session(engine):
     """Creates a fresh DB session for a test and rolls back after."""
     async with engine.begin() as conn:
@@ -56,7 +57,7 @@ async def db_session(engine):
 async def test_postgres_integration_crud(db_session: AsyncSession):
     """Verifies that we can write to and read from the real PostgreSQL DB."""
     # Create Tenant
-    tenant = Tenant(name="Integration Test Corp", domain="test.com")
+    tenant = Tenant(name="Integration Test Corp", slug="integration-test-corp")
     db_session.add(tenant)
     await db_session.commit()
     await db_session.refresh(tenant)
