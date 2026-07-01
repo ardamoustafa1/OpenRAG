@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Any
 
 import stripe
 import structlog
@@ -23,7 +24,7 @@ else:
     )
 
 
-def verify_stripe_configured():
+def verify_stripe_configured() -> None:
     if not settings.STRIPE_API_KEY:
         raise HTTPException(
             status_code=503, detail="Billing service is not configured."
@@ -33,7 +34,7 @@ def verify_stripe_configured():
 router = APIRouter(tags=["Billing"])
 
 
-def verify_tenant_admin(user: User = Depends(get_current_user)):
+def verify_tenant_admin(user: User = Depends(get_current_user)) -> User:
     if user.role not in ["super_admin", "tenant_admin"]:
         raise HTTPException(status_code=403, detail="Tenant Admin privileges required")
     return user
@@ -44,14 +45,21 @@ async def get_current_plan(
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
     admin: User = Depends(verify_tenant_admin),
-):
+) -> Any:
     stmt = select(TenantSubscription).where(
         TenantSubscription.tenant_id == tenant.id, TenantSubscription.status == "active"
     )
     subscription = (await db.execute(stmt)).scalars().first()
     if not subscription:
         raise HTTPException(status_code=404, detail="No active subscription found")
-    return subscription
+    return {
+        "id": str(subscription.id),
+        "tenant_id": str(subscription.tenant_id),
+        "plan_id": str(subscription.plan_id),
+        "status": subscription.status,
+        "stripe_subscription_id": subscription.stripe_subscription_id,
+        "stripe_customer_id": subscription.stripe_customer_id,
+    }
 
 
 @router.post("/billing/portal", dependencies=[Depends(verify_stripe_configured)])
@@ -59,7 +67,7 @@ async def create_stripe_portal(
     tenant: Tenant = Depends(get_current_tenant),
     admin: User = Depends(verify_tenant_admin),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> dict[str, str]:
     """
     Returns a Stripe Customer Portal URL for the user to manage their subscription.
     """
@@ -97,7 +105,7 @@ async def stripe_webhook(
     request: Request,
     stripe_signature: str = Header(None, alias="stripe-signature"),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> dict[str, str]:
     """
     Handles async events from Stripe (e.g. invoice.paid, subscription.deleted).
     Verifies webhook signature using STRIPE_WEBHOOK_SECRET.
@@ -112,7 +120,7 @@ async def stripe_webhook(
 
     try:
         # Verify webhook signature — CRITICAL security check
-        event = stripe.Webhook.construct_event(
+        event = stripe.Webhook.construct_event(  # type: ignore[no-untyped-call]
             payload, stripe_signature, settings.STRIPE_WEBHOOK_SECRET
         )
     except stripe.SignatureVerificationError as e:
