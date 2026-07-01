@@ -1,6 +1,7 @@
 import asyncio
 import json
 import uuid
+from typing import Any
 
 import jwt
 import structlog
@@ -16,7 +17,6 @@ from fastapi import (
 )
 from jwt.exceptions import PyJWTError as JWTError
 from pydantic import BaseModel
-from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +28,7 @@ from app.core.rate_limit import limiter
 # Use explicit class names to prevent ambiguity
 from app.models.document import Document, DocumentCollection
 from app.models.tenant import Tenant
+from app.models.types import RedisClient
 from app.models.user import User
 from app.rag.vector_store import vector_store
 from app.services.storage import storage_service
@@ -44,7 +45,7 @@ router = APIRouter(tags=["Documents"])
 async def list_collections(
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
-):
+) -> Any:
     stmt = select(DocumentCollection).where(DocumentCollection.tenant_id == tenant.id)
     result = await db.execute(stmt)
     return result.scalars().all()
@@ -60,7 +61,7 @@ async def create_collection(
     payload: CreateCollectionRequest,
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
-):
+) -> Any:
     col = DocumentCollection(
         tenant_id=tenant.id, name=payload.name, description=payload.description
     )
@@ -75,7 +76,7 @@ async def delete_collection(
     id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
-):
+) -> dict[str, str]:
     stmt = select(DocumentCollection).where(
         DocumentCollection.id == id, DocumentCollection.tenant_id == tenant.id
     )
@@ -106,7 +107,7 @@ async def list_documents(
     collection_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
-):
+) -> Any:
     stmt = select(Document).where(
         Document.collection_id == collection_id, Document.tenant_id == tenant.id
     )
@@ -123,7 +124,7 @@ async def upload_document(
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
     user: User = Depends(get_current_user),
-):
+) -> dict[str, Any]:
     """Uploads a file, saves to MinIO, and queues the Celery ingestion task."""
 
     ALLOWED_MIME_TYPES = {
@@ -206,7 +207,7 @@ async def delete_document(
     document_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
-):
+) -> dict[str, str]:
     stmt = select(Document).where(
         Document.id == document_id, Document.tenant_id == tenant.id
     )
@@ -231,7 +232,7 @@ async def retry_document(
     document_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
     tenant: Tenant = Depends(get_current_tenant),
-):
+) -> dict[str, str]:
     stmt = select(Document).where(
         Document.id == document_id, Document.tenant_id == tenant.id
     )
@@ -264,8 +265,8 @@ async def retry_document(
 
 @router.websocket("/ws/documents/{document_id}/progress")
 async def document_progress_ws(
-    websocket: WebSocket, document_id: str, redis: Redis = Depends(get_redis)
-):
+    websocket: WebSocket, document_id: str, redis: RedisClient = Depends(get_redis)
+) -> None:
     """
     Real-time document processing progress via Redis Pub/Sub.
     """
