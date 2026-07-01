@@ -15,6 +15,6 @@ async def test_auth_login_fail(client: AsyncClient):
     """Test login with invalid credentials."""
     response = await client.post(
         "/api/v1/auth/login",
-        data={"username": "invalid@test.com", "password": "wrongpassword"},
+        json={"email": "invalid@test.com", "password": "wrongpassword"},
     )
     assert response.status_code == 401
