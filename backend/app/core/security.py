@@ -5,9 +5,9 @@ from typing import Any
 
 import jwt
 from passlib.context import CryptContext
-from redis.asyncio import Redis
 
 from app.core.config import settings
+from app.models.types import RedisClient
 
 # Setup Argon2 hasher
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -15,12 +15,12 @@ pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify plain password against hashed version."""
-    return pwd_context.verify(plain_password, hashed_password)
+    return pwd_context.verify(plain_password, hashed_password)  # type: ignore[no-any-return]
 
 
 def get_password_hash(password: str) -> str:
     """Generate Argon2 hash for password."""
-    return pwd_context.hash(password)
+    return pwd_context.hash(password)  # type: ignore[no-any-return]
 
 
 def create_access_token(
@@ -40,41 +40,38 @@ def create_access_token(
             to_encode["sub"] = str(to_encode["sub"])
     else:
         to_encode = {"sub": str(subject)}
+
     to_encode.update({"exp": expire, "type": "access"})
-    encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-    )
-    return encoded_jwt
+
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_refresh_token(
-    subject: str | Any, expires_delta: timedelta | None = None
-) -> str:
+def create_refresh_token(subject: str | Any) -> str:
     """Create a long-lived JWT refresh token."""
-    if expires_delta:
-        expire = datetime.now(UTC) + expires_delta
+    expire = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    if isinstance(subject, dict):
+        to_encode = subject.copy()
+        if "sub" in to_encode:
+            to_encode["sub"] = str(to_encode["sub"])
     else:
-        # Default 7 days
-        expire = datetime.now(UTC) + timedelta(days=7)
+        to_encode = {"sub": str(subject)}
 
-    to_encode = {"exp": expire, "sub": str(subject), "type": "refresh"}
-    encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-    )
-    return encoded_jwt
+    to_encode.update({"exp": expire, "type": "refresh"})
+
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_api_key() -> tuple[str, str, str]:
+def generate_api_key() -> tuple[str, str, str]:
     """
-    Generate a secure API key.
-    Returns:
-        tuple containing: (raw_key, key_hash, key_prefix)
+    Generates a secure API key.
+    Returns: (raw_key, prefix, hashed_key)
+    Format: erag_{prefix}_{secret}
     """
-    raw_key = secrets.token_urlsafe(32)
-    # Use SHA-256 for API keys to avoid Argon2 overhead on every API request
-    key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
-    key_prefix = raw_key[:8]
-    return raw_key, key_hash, key_prefix
+    prefix = secrets.token_hex(4)  # 8 characters
+    secret = secrets.token_urlsafe(32)
+    raw_key = f"erag_{prefix}_{secret}"
+    hashed_key = hashlib.sha256(raw_key.encode()).hexdigest()
+    return raw_key, f"erag_{prefix}", hashed_key
 
 
 def verify_api_key(plain_key: str, hashed_key: str) -> bool:
@@ -82,7 +79,9 @@ def verify_api_key(plain_key: str, hashed_key: str) -> bool:
     return hashlib.sha256(plain_key.encode()).hexdigest() == hashed_key
 
 
-async def add_token_to_blacklist(redis: Redis, token: str, expires_in: int) -> None:
+async def add_token_to_blacklist(
+    redis: RedisClient, token: str, expires_in: int
+) -> None:
     """
     Add a token to the Redis blacklist with a TTL.
     Stores the SHA256 hash of the token to save memory and avoid storing full JWTs.
@@ -91,7 +90,7 @@ async def add_token_to_blacklist(redis: Redis, token: str, expires_in: int) -> N
     await redis.setex(f"blacklist:{token_hash}", expires_in, "true")
 
 
-async def is_token_blacklisted(redis: Redis, token: str) -> bool:
+async def is_token_blacklisted(redis: RedisClient, token: str) -> bool:
     """
     Check if a token's hash is in the Redis blacklist.
     """
