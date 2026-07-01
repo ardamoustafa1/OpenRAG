@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 import structlog
 
@@ -15,7 +17,9 @@ class EmbeddingService:
         self.model_name = model_name
         self.batch_size = batch_size
 
-    async def embed_chunks(self, chunks: list[dict], tenant_id: str) -> list[dict]:
+    async def embed_chunks(
+        self, chunks: list[dict[str, Any]], tenant_id: str
+    ) -> list[dict[str, Any]]:
         """
         Takes a list of chunk dictionaries, generates embeddings in batches,
         normalizes them for cosine similarity, and adds the embedding vector to the dict.
