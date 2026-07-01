@@ -1,3 +1,5 @@
+from typing import Any
+
 import structlog
 from fastapi import APIRouter, Response, status
 from redis.asyncio import Redis
@@ -13,13 +15,13 @@ router = APIRouter(tags=["Health"])
 
 
 @router.get("/health")
-async def health_liveness():
+async def health_liveness() -> dict[str, str]:
     """Fast liveness probe for Kubernetes."""
     return {"status": "ok"}
 
 
 @router.get("/ready")
-async def health_readiness(response: Response):
+async def health_readiness(response: Response) -> dict[str, Any]:
     """Deep readiness probe checking all critical dependencies."""
     components = {"postgres": False, "redis": False, "qdrant": False, "minio": False}
 
