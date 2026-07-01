@@ -16,7 +16,7 @@ class QueryUnderstandingService:
     def detect_language(self, query: str) -> str:
         """Detect the language of the query."""
         try:
-            return langdetect.detect(query)
+            return langdetect.detect(query)  # type: ignore[no-any-return]
         except Exception:
             return "unknown"
 
@@ -80,7 +80,7 @@ class QueryUnderstandingService:
         norm = np.linalg.norm(vec)
         if norm > 0:
             vec = vec / norm
-        return vec.tolist()
+        return vec.tolist()  # type: ignore[no-any-return]
 
     async def classify_intent(self, query: str, tenant_id: str) -> str:
         """
