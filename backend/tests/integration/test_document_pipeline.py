@@ -2,6 +2,7 @@ import uuid
 from unittest.mock import patch
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +12,7 @@ from app.models.tenant import Tenant
 from app.models.user import User
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup_document_test(db_session: AsyncSession):
     tenant = Tenant(id=uuid.uuid4(), name="Doc Tenant", slug="doc-tenant")
     user = User(
