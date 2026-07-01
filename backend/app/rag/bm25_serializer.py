@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from rank_bm25 import BM25Okapi
 
@@ -10,7 +11,7 @@ class BM25Serializer:
     """
 
     @staticmethod
-    def to_json(bm25: BM25Okapi, mapping: list[dict]) -> str:
+    def to_json(bm25: BM25Okapi, mapping: list[dict[str, Any]]) -> str:
         """Serializes BM25 model and chunk mapping to a JSON string."""
         payload = {
             "model": {
@@ -28,7 +29,7 @@ class BM25Serializer:
         return json.dumps(payload)
 
     @staticmethod
-    def from_json(json_str: str) -> dict:
+    def from_json(json_str: str | bytes) -> dict[str, Any]:
         """
         Deserializes a JSON string back into a dict containing the BM25Okapi model and mapping.
         """
