@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+from typing import Any
 
 import httpx
 import structlog
@@ -12,14 +13,16 @@ logger = structlog.get_logger()
 celery_app = Celery("webhook_worker", broker="redis://localhost:6379/0")
 
 
-def generate_signature(secret: str, payload: dict) -> str:
+def generate_signature(secret: str, payload: dict[str, Any]) -> str:
     payload_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     secret_bytes = secret.encode("utf-8")
     return hmac.new(secret_bytes, payload_bytes, hashlib.sha256).hexdigest()
 
 
-@celery_app.task(bind=True, max_retries=5, retry_backoff=True, retry_backoff_max=600)
-def send_webhook(self, webhook_id: str, event_type: str, payload: dict):
+@celery_app.task(bind=True, max_retries=5, retry_backoff=True, retry_backoff_max=600)  # type: ignore[untyped-decorator]
+def send_webhook(
+    self: Any, webhook_id: str, event_type: str, payload: dict[str, Any]
+) -> str:
     """
     Delivers a webhook payload with exponential backoff on 5xx errors.
     Signs the payload using HMAC-SHA256 for verification by the receiver.
