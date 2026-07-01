@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +12,7 @@ from app.models.tenant import Tenant
 from app.models.user import User
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup_tenants_and_users(db_session: AsyncSession):
     # Create Tenant A
     tenant_a = Tenant(id=uuid.uuid4(), name="Tenant A", slug="tenant-a")
