@@ -1,3 +1,5 @@
+from typing import Any
+
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Request
 from starlette.config import Config
@@ -8,11 +10,11 @@ from starlette.config import Config
 
 
 class OIDCService:
-    def __init__(self):
+    def __init__(self) -> None:
         # We can store instances of oauth per tenant or dynamically create them
-        self.oauth_clients = {}
+        self.oauth_clients: dict[str, Any] = {}
 
-    def get_client(self, tenant_slug: str, oidc_settings: dict):
+    def get_client(self, tenant_slug: str, oidc_settings: dict[str, Any]) -> Any:
         """
         Retrieves or creates an Authlib client for a specific tenant based on their settings.
         oidc_settings should contain:
@@ -33,11 +35,13 @@ class OIDCService:
 
         return self.oauth_clients[tenant_slug]
 
-    async def generate_login_url(self, client, request: Request, redirect_uri: str):
+    async def generate_login_url(
+        self, client: Any, request: Request, redirect_uri: str
+    ) -> Any:
         """Generates the authorization URL to redirect the user."""
         return await client.authorize_redirect(request, redirect_uri)
 
-    async def verify_callback(self, client, request: Request):
+    async def verify_callback(self, client: Any, request: Request) -> Any:
         """Exchanges the authorization code for an access token and user info."""
         token = await client.authorize_access_token(request)
         userinfo = token.get("userinfo")
