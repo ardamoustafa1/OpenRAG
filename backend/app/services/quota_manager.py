@@ -1,3 +1,6 @@
+import uuid
+from typing import Any
+
 import structlog
 from fastapi import HTTPException
 from redis.asyncio import Redis
@@ -5,13 +8,14 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.db import async_session_factory
-from app.models.billing import BillingPlan
+from app.models.billing import BillingPlan, TenantSubscription
+from app.models.types import RedisClient
 
 logger = structlog.get_logger()
 
 
 class QuotaStatus:
-    def __init__(self, used: int, limit: int):
+    def __init__(self, used: int, limit: int) -> None:
         self.used = used
         self.limit = limit
         self.percentage = (used / limit * 100) if limit > 0 else 0
@@ -24,21 +28,33 @@ class QuotaManager:
     Manages tenant quotas atomically using Redis INCR.
     """
 
-    def __init__(self):
-        self.redis = Redis.from_url(settings.REDIS_URL, decode_responses=True)
+    def __init__(self) -> None:
+        self.redis: RedisClient = Redis.from_url(
+            settings.REDIS_URL, decode_responses=True
+        )
 
-    async def _get_plan_limits(self, tenant_id: str) -> dict:
+    async def _get_plan_limits(self, tenant_id: str) -> dict[str, Any]:
         """Fetch the tenant's current billing plan limits."""
         async with async_session_factory() as db:
-            stmt = select(BillingPlan).where(
-                BillingPlan.tenant_id == tenant_id, BillingPlan.is_active.is_(True)
+            try:
+                tid_val = uuid.UUID(tenant_id)
+            except ValueError:
+                return {"tokens": 500_000, "documents": 100, "users": 3}
+
+            stmt = (
+                select(BillingPlan)
+                .join(TenantSubscription, TenantSubscription.plan_id == BillingPlan.id)
+                .where(
+                    TenantSubscription.tenant_id == tid_val,
+                    TenantSubscription.status == "active",
+                )
             )
             plan = (await db.execute(stmt)).scalars().first()
             if not plan:
                 # Default limits if no plan found (Free Tier fallback)
                 return {"tokens": 500_000, "documents": 100, "users": 3}
             return {
-                "tokens": plan.max_tokens,
+                "tokens": plan.max_tokens_per_month,
                 "documents": plan.max_documents,
                 "users": plan.max_users,
             }
@@ -55,8 +71,8 @@ class QuotaManager:
             return QuotaStatus(0, -1)
 
         cache_key = f"tenant:{tenant_id}:usage:{resource_type}"
-        used = await self.redis.get(cache_key)
-        used = int(used) if used else 0
+        used_raw = await self.redis.get(cache_key)
+        used = int(used_raw) if used_raw else 0
 
         status = QuotaStatus(used, limit)
 
@@ -75,7 +91,9 @@ class QuotaManager:
 
         return status
 
-    async def record_usage(self, tenant_id: str, resource_type: str, amount: int = 1):
+    async def record_usage(
+        self, tenant_id: str, resource_type: str, amount: int = 1
+    ) -> None:
         """
         Atomically increment the usage counter in Redis.
         """
@@ -100,7 +118,7 @@ class QuotaManager:
 
             trigger_quota_warning.delay(tenant_id, resource_type, 95)
 
-    async def reset_monthly_quotas(self, tenant_id: str):
+    async def reset_monthly_quotas(self, tenant_id: str) -> None:
         """
         Resets the monthly token and document usage.
         Does NOT reset user count, as that is a hard cap based on active users.
