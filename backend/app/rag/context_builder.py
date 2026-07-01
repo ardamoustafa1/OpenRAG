@@ -14,7 +14,7 @@ class ContextBuilder:
 
     def build_context(
         self, reranked_chunks: List[Dict[str, Any]], max_context_tokens: int
-    ) -> tuple[List[Dict], str]:
+    ) -> tuple[List[Dict[str, Any]], str]:
         """
         Deduplicates chunks, fits them into max_context_tokens, and formats them.
         Returns the finalized list of used chunks and the formatted context string.
