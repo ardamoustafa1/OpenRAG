@@ -14,7 +14,8 @@ class AIObserver:
     Integrates with Langfuse to trace entire RAG execution flows.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        self.langfuse: Any = None
         try:
             self.langfuse = Langfuse(
                 public_key=settings.LANGFUSE_PUBLIC_KEY,
@@ -37,19 +38,19 @@ class AIObserver:
         """
         if not self.langfuse:
             # Yield a dummy object if Langfuse is offline
+            class DummySpan:
+                def update(self, *args: Any, **kwargs: Any) -> None:
+                    pass
+
+                def end(self, *args: Any, **kwargs: Any) -> None:
+                    pass
+
             class DummyTrace:
                 @contextmanager
-                def span(self, *args, **kwargs):
+                def span(self, *args: Any, **kwargs: Any) -> Generator[Any, None, None]:
                     yield DummySpan()
 
-                def update(self, *args, **kwargs):
-                    pass
-
-            class DummySpan:
-                def update(self, *args, **kwargs):
-                    pass
-
-                def end(self, *args, **kwargs):
+                def update(self, *args: Any, **kwargs: Any) -> None:
                     pass
 
             yield DummyTrace()
@@ -74,7 +75,9 @@ class AIObserver:
             # Flush traces asynchronously
             self.langfuse.flush()
 
-    def record_feedback(self, trace_id: str, score: float, comment: str = None):
+    def record_feedback(
+        self, trace_id: str, score: float, comment: str | None = None
+    ) -> None:
         """
         Records user feedback (e.g. thumb up=1.0, thumb down=0.0) against a specific trace.
         """
