@@ -29,7 +29,7 @@ class ModelManager:
         # Placeholder
         return True
 
-    async def preload_ollama_model(self, model_name: str):
+    async def preload_ollama_model(self, model_name: str) -> None:
         """
         Send a blank request to Ollama to load the model into VRAM before the user starts chatting.
         Ollama keeps models in memory for 5 minutes by default.
