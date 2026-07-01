@@ -30,9 +30,9 @@ async def export_audit_logs(tenant_id: str) -> Tuple[bytes, str]:
                 "id": str(log.id),
                 "timestamp": log.created_at.isoformat(),
                 "user_id": log.user_id,
-                "action": log.action,
-                "resource": log.resource,
-                "ip_address": log.ip_address,
+                "resource_type": log.resource_type,
+                "resource_id": str(log.resource_id),
+                "ip_address": str(log.ip_address) if log.ip_address else None,
             }
         )
 
