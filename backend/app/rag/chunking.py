@@ -1,3 +1,5 @@
+from typing import Any
+
 import structlog
 
 from app.llm.token_counter import token_counter
@@ -14,12 +16,14 @@ class ChunkingService:
         self.max_tokens = max_tokens
         self.overlap = overlap
 
-    def chunk_elements(self, elements: list[dict], document_id: str) -> list[dict]:
+    def chunk_elements(
+        self, elements: list[dict[str, Any]], document_id: str
+    ) -> list[dict[str, Any]]:
         """
         Group elements structurally. If a block exceeds max_tokens, recursive split it.
         """
-        chunks = []
-        current_chunk_text = []
+        chunks: list[dict[str, Any]] = []
+        current_chunk_text: list[str] = []
         current_chunk_tokens = 0
         current_section_title = "Unknown"
 
@@ -109,7 +113,7 @@ class ChunkingService:
 
     def _flush_chunk(
         self, chunk_texts: list[str], section_title: str, document_id: str
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         joined_text = "\n\n".join(chunk_texts)
         tokens = token_counter.count_tokens(joined_text)
         if tokens > self.max_tokens:
@@ -118,7 +122,7 @@ class ChunkingService:
 
     def _recursive_split(
         self, text: str, section_title: str, document_id: str
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Fallback split by paragraphs/sentences."""
         # A simple implementation. In production, use Langchain's RecursiveCharacterTextSplitter logic.
         paragraphs = text.split("\n\n")
@@ -154,7 +158,7 @@ class ChunkingService:
 
     def _build_chunk_dict(
         self, text: str, tokens: int, section_title: str, document_id: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         return {
             "document_id": document_id,
             "text": text,
