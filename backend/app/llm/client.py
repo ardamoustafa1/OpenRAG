@@ -28,10 +28,10 @@ class LLMClient:
     async def astream_chat(
         self,
         model: str,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         tenant_id: str,
         user_id: str | None = None,
-        **kwargs
+        **kwargs: Any
     ) -> AsyncGenerator[str, None]:
         """Stream chat responses. Injects Langfuse metadata."""
         metadata = {"tenant_id": tenant_id, "user_id": user_id}
@@ -50,10 +50,10 @@ class LLMClient:
     async def achat(
         self,
         model: str,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         tenant_id: str,
         user_id: str | None = None,
-        **kwargs
+        **kwargs: Any
     ) -> Any:
         """Standard chat completion request."""
         metadata = {"tenant_id": tenant_id, "user_id": user_id}
@@ -73,7 +73,7 @@ class LLMClient:
             response = await aembedding(
                 model=model, input=input_text, metadata=metadata
             )
-            return response.data[0]["embedding"]
+            return response.data[0]["embedding"]  # type: ignore[no-any-return]
         except Exception as e:
             logger.error("LLM Embedding failed", error=str(e), model=model)
             raise
@@ -92,7 +92,7 @@ class LLMClient:
             logger.error("LLM Batch Embedding failed", error=str(e), model=model)
             raise
 
-    async def alist_models(self) -> list[dict]:
+    async def alist_models(self) -> list[dict[str, Any]]:
         """List available models from the proxy (pseudo-implementation)."""
         # Typically, you'd GET /v1/models from the proxy via httpx
         return [{"id": "llama3.3-70b"}, {"id": "qwen2.5-72b"}, {"id": "phi-4-mini"}]
