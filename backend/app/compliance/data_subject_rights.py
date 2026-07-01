@@ -1,3 +1,5 @@
+from typing import Any
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, update
@@ -12,12 +14,14 @@ router = APIRouter(tags=["Compliance & GDPR"])
 
 
 # Mock dependency
-async def get_current_user():
+async def get_current_user() -> dict[str, Any]:
     return {"id": "user-123", "tenant_id": "tenant-456"}
 
 
 @router.get("/compliance/my-data")
-async def export_my_data(user: dict = Depends(get_current_user)):
+async def export_my_data(
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
     """KVKK Article 11 / GDPR Right to Portability. Returns all user data in JSON."""
     # In a real app, query Postgres for User, Conversations, and Messages
     return {
@@ -29,7 +33,9 @@ async def export_my_data(user: dict = Depends(get_current_user)):
 
 
 @router.post("/compliance/delete-my-data")
-async def delete_my_data(user: dict = Depends(get_current_user)):
+async def delete_my_data(
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
     """
     GDPR Right to be Forgotten.
     Hard deletes data across all stores, pseudonymizes immutable audit logs.
@@ -41,9 +47,7 @@ async def delete_my_data(user: dict = Depends(get_current_user)):
         try:
             # 1. Pseudonymize Audit Logs
             await db.execute(
-                update(AuditLog)
-                .where(AuditLog.user_id == user_id)
-                .values(user_id=pseudo_id, extra_data={})
+                update(AuditLog).where(AuditLog.user_id == user_id).values(user_id=None)
             )
 
             # 2. Delete Messages & Conversations
