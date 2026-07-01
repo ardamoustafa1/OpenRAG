@@ -5,7 +5,6 @@ import jwt
 import pyotp
 from fastapi import APIRouter, Depends, HTTPException, Request
 from jwt.exceptions import PyJWTError as JWTError
-from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +20,7 @@ from app.core.security import (
     is_token_blacklisted,
     verify_password,
 )
+from app.models.types import RedisClient
 from app.models.user import User
 from app.schemas.auth import (
     LoginRequest,
@@ -38,6 +38,11 @@ from app.services.email import email_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+DUMMY_PASSWORD_HASH = (
+    "$argon2id$v=19$m=65536,t=3,p=4$CoGwdo5Ram0NQQihFIKQ0g"
+    "$nC6GgeLuigabtnnizpJH2faH73L9Sba3MWRfCPFvyj8"
+)
+
 
 @router.post("/login", response_model=Token)
 @limiter.limit("5/minute")
@@ -45,7 +50,7 @@ async def login(
     request: Request,
     credentials: LoginRequest,
     db: AsyncSession = Depends(get_db_session),
-    redis: Redis = Depends(get_redis),
+    redis: RedisClient = Depends(get_redis),
 ) -> Any:
     """Login with email and password."""
     cache_key = f"login_failures:{credentials.email}"
@@ -61,9 +66,7 @@ async def login(
 
     if not user or not user.hashed_password:
         # Prevent timing attacks by hashing anyway
-        verify_password(
-            credentials.password, "$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy"
-        )
+        verify_password(credentials.password, DUMMY_PASSWORD_HASH)
         await redis.incr(cache_key)
         await redis.expire(cache_key, 900)
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -102,7 +105,7 @@ async def logout(
     request: Request,
     refresh_req: RefreshTokenRequest,
     current_user: User = Depends(get_current_user),
-    redis: Redis = Depends(get_redis),
+    redis: RedisClient = Depends(get_redis),
 ) -> Any:
     """Logout by blacklisting the current access and refresh tokens."""
     # Blacklist logic
@@ -121,7 +124,7 @@ async def login_with_mfa(
     request: Request,
     credentials: MFALoginRequest,
     db: AsyncSession = Depends(get_db_session),
-    redis: Redis = Depends(get_redis),
+    redis: RedisClient = Depends(get_redis),
 ) -> Any:
     """Login for users with MFA enabled. Requires email, password, and TOTP code."""
     cache_key = f"login_failures:{credentials.email}"
@@ -135,9 +138,7 @@ async def login_with_mfa(
     user = (await db.execute(stmt)).scalars().first()
 
     if not user or not user.hashed_password:
-        verify_password(
-            credentials.password, "$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy"
-        )
+        verify_password(credentials.password, DUMMY_PASSWORD_HASH)
         await redis.incr(cache_key)
         await redis.expire(cache_key, 900)
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -176,7 +177,8 @@ async def login_with_mfa(
 
 @router.post("/mfa/setup", response_model=MFASetupResponse)
 async def setup_mfa(
-    current_user: User = Depends(get_current_user), redis: Redis = Depends(get_redis)
+    current_user: User = Depends(get_current_user),
+    redis: RedisClient = Depends(get_redis),
 ) -> Any:
     """Generate TOTP secret and QR code URI."""
     if current_user.mfa_enabled:
@@ -199,7 +201,7 @@ async def verify_mfa(
     req: MFAVerifyRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
-    redis: Redis = Depends(get_redis),
+    redis: RedisClient = Depends(get_redis),
 ) -> Any:
     """Verify TOTP code and enable MFA."""
     if current_user.mfa_enabled:
@@ -278,7 +280,7 @@ async def request_password_reset(
 async def confirm_password_reset(
     req: PasswordResetConfirm,
     db: AsyncSession = Depends(get_db_session),
-    redis: Redis = Depends(get_redis),
+    redis: RedisClient = Depends(get_redis),
 ) -> Any:
     """Confirm password reset using the token."""
     if await is_token_blacklisted(redis, req.token):
@@ -310,7 +312,7 @@ async def confirm_password_reset(
 @router.post("/refresh", response_model=Token)
 async def refresh_access_token(
     req: RefreshTokenRequest,
-    redis: Redis = Depends(get_redis),
+    redis: RedisClient = Depends(get_redis),
     db: AsyncSession = Depends(get_db_session),
 ) -> Any:
     """Issue a new access token using a valid refresh token."""
