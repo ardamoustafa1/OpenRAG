@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import structlog
 from asgiref.sync import async_to_sync
@@ -9,6 +10,7 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.core.db import async_session_factory
 from app.models.document import Document, DocumentChunk
+from app.models.types import RedisClient
 from app.rag.bm25_serializer import BM25Serializer
 from app.rag.chunking import chunking_service
 from app.rag.embedding import embedding_service
@@ -21,8 +23,8 @@ logger = structlog.get_logger()
 
 
 async def emit_progress(
-    redis: Redis, document_id: str, stage: str, progress: float, message: str
-):
+    redis: RedisClient, document_id: str, stage: str, progress: float, message: str
+) -> None:
     """Publish progress to a Redis channel specific to the document."""
     channel = f"doc_progress:{document_id}"
     payload = {
@@ -44,7 +46,7 @@ async def _process_document_async(
     object_name: str,
     filename: str,
     content_type: str,
-):
+) -> None:
     redis = Redis.from_url(settings.REDIS_URL)
 
     async with async_session_factory() as db:
@@ -121,16 +123,16 @@ async def _process_document_async(
             await redis.close()
 
 
-@celery_app.task(bind=True, max_retries=3, retry_backoff=True)
+@celery_app.task(bind=True, max_retries=3, retry_backoff=True)  # type: ignore[untyped-decorator]
 def process_document(
-    self,
+    self: Any,
     document_id: str,
     tenant_id: str,
     collection_id: str,
     object_name: str,
     filename: str,
     content_type: str,
-):
+) -> None:
     """
     Synchronous Celery task wrapper that runs the async pipeline.
     """
@@ -146,9 +148,9 @@ def process_document(
         raise self.retry(exc=exc) from exc
 
 
-async def _build_bm25_index_async(tenant_id: str, collection_id: str):
+async def _build_bm25_index_async(tenant_id: str, collection_id: str) -> None:
     """Fetches all chunks for a collection, builds BM25, and caches in Redis."""
-    redis = Redis.from_url(settings.REDIS_URL)
+    redis: RedisClient = Redis.from_url(settings.REDIS_URL)
 
     async with async_session_factory() as db:
         try:
@@ -195,8 +197,8 @@ async def _build_bm25_index_async(tenant_id: str, collection_id: str):
             await redis.close()
 
 
-@celery_app.task(bind=True)
-def build_bm25_index(self, tenant_id: str, collection_id: str):
+@celery_app.task(bind=True)  # type: ignore[untyped-decorator]
+def build_bm25_index(self: Any, tenant_id: str, collection_id: str) -> None:
     """Synchronous Celery task wrapper to build BM25 index."""
     logger.info("Celery task started: build_bm25_index", collection_id=collection_id)
     try:
