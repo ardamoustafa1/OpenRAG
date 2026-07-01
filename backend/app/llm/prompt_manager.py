@@ -1,3 +1,5 @@
+from typing import Any
+
 import jinja2
 
 
@@ -7,7 +9,7 @@ class PromptManager:
     Supports rendering templates via Jinja2.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Setup Jinja environment
         self.env = jinja2.Environment(autoescape=True)
 
@@ -42,7 +44,7 @@ USER QUESTION: {{ question }}
         }
 
     def render_rag_prompt(
-        self, language: str, chunks: list[dict], question: str
+        self, language: str, chunks: list[dict[str, Any]], question: str
     ) -> str:
         """Render the RAG system prompt with context chunks."""
         template_str = self.templates.get(f"rag_{language}", self.templates["rag_en"])
