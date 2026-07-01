@@ -41,6 +41,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-rag_db}
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -57,6 +59,9 @@ services:
   redis:
     image: redis/redis-stack-server:7.2.0-v10
     command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+      - "8001:8001" # RedisInsight
     volumes:
       - redis_data:/data
     networks:
@@ -72,6 +77,9 @@ services:
   # ----------------------------------------
   qdrant:
     image: qdrant/qdrant:v1.10.1
+    ports:
+      - "6333:6333"
+      - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
     networks:
@@ -87,6 +95,9 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?error MINIO_ROOT_PASSWORD must be set}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_data:/data
     networks:
