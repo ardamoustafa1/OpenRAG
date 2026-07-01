@@ -14,7 +14,7 @@ logger = structlog.get_logger()
 # Async Helper Functions
 
 
-async def _reset_monthly_quotas():
+async def _reset_monthly_quotas() -> None:
     logger.info("Starting monthly quota reset job")
     async with async_session_factory() as db:
         stmt = select(Tenant.id).where(Tenant.is_active.is_(True))
@@ -26,7 +26,9 @@ async def _reset_monthly_quotas():
     logger.info("Finished monthly quota reset job")
 
 
-async def _trigger_quota_warning(tenant_id: str, resource_type: str, percentage: int):
+async def _trigger_quota_warning(
+    tenant_id: str, resource_type: str, percentage: int
+) -> None:
     # In a real scenario, fetch tenant admin email from DB
     admin_email = "admin@example.com"
 
@@ -41,19 +43,19 @@ async def _trigger_quota_warning(tenant_id: str, resource_type: str, percentage:
 # Celery Tasks
 
 
-@celery_app.task(name="app.workers.scheduled_tasks.reset_monthly_quotas_task")
-def reset_monthly_quotas_task():
+@celery_app.task(name="app.workers.scheduled_tasks.reset_monthly_quotas_task")  # type: ignore[untyped-decorator]
+def reset_monthly_quotas_task() -> None:
     asyncio.run(_reset_monthly_quotas())
 
 
-@celery_app.task(name="app.workers.scheduled_tasks.send_usage_summary_emails_task")
-def send_usage_summary_emails_task():
+@celery_app.task(name="app.workers.scheduled_tasks.send_usage_summary_emails_task")  # type: ignore[untyped-decorator]
+def send_usage_summary_emails_task() -> None:
     # Implementation for daily usage summary
     logger.info("Sending daily usage summaries...")
     # asyncio.run(...)
 
 
-@celery_app.task(name="app.workers.scheduled_tasks.trigger_quota_warning")
-def trigger_quota_warning(tenant_id: str, resource_type: str, percentage: int):
+@celery_app.task(name="app.workers.scheduled_tasks.trigger_quota_warning")  # type: ignore[untyped-decorator]
+def trigger_quota_warning(tenant_id: str, resource_type: str, percentage: int) -> None:
     logger.info("Triggering quota warning", tenant_id=tenant_id, percentage=percentage)
     asyncio.run(_trigger_quota_warning(tenant_id, resource_type, percentage))
