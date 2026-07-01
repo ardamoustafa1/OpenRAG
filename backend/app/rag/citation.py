@@ -36,7 +36,7 @@ class CitationService:
         # Placeholder for NLI / Sentence-transformer based sentence matching.
         # Currently, the prompt instructs the LLM to write [Kaynak: X] directly.
         # We will parse those markers if needed, or rely on the LLM's inline citations.
-        pass
+        return {"annotated_text": response_text, "citations": []}
 
 
 citation_service = CitationService()
