@@ -1,6 +1,6 @@
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from testcontainers.core.container import DockerContainer
 from testcontainers.postgres import PostgresContainer
@@ -50,7 +50,7 @@ async def db_session(postgres_container):
         await conn.run_sync(BaseModel.metadata.create_all)
 
     TestingSessionLocal = async_sessionmaker(
-        autocommit=False, autoflush=False, bind=engine
+        autocommit=False, autoflush=False, expire_on_commit=False, bind=engine
     )
 
     async with TestingSessionLocal() as session:
@@ -68,7 +68,9 @@ async def client(db_session):
 
     app.dependency_overrides[get_db_session] = override_get_db_session
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
         yield ac
 
     app.dependency_overrides.clear()
