@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import MetaData, inspect
+from sqlalchemy import DateTime, MetaData, inspect
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -26,9 +26,13 @@ class BaseModel(AsyncAttrs, DeclarativeBase):
     metadata = metadata
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     def to_dict(self) -> dict[str, Any]:
@@ -42,4 +46,9 @@ class BaseModel(AsyncAttrs, DeclarativeBase):
 class SoftDeleteMixin:
     """Mixin to add soft-delete capability."""
 
-    deleted_at: Mapped[datetime | None] = mapped_column(default=None)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+
+
+Base = BaseModel
