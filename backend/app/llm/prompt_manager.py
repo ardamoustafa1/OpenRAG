@@ -1,15 +1,16 @@
 import jinja2
 
+
 class PromptManager:
     """
     Manages prompt templates, few-shot examples, and basic prompt injection defenses.
     Supports rendering templates via Jinja2.
     """
-    
+
     def __init__(self):
         # Setup Jinja environment
-        self.env = jinja2.Environment()
-        
+        self.env = jinja2.Environment(autoescape=True)
+
         # Define base templates
         self.templates = {
             "rag_tr": """
@@ -37,16 +38,20 @@ CONTEXT:
 {% endfor %}
 
 USER QUESTION: {{ question }}
-"""
+""",
         }
 
-    def render_rag_prompt(self, language: str, chunks: list[dict], question: str) -> str:
+    def render_rag_prompt(
+        self, language: str, chunks: list[dict], question: str
+    ) -> str:
         """Render the RAG system prompt with context chunks."""
         template_str = self.templates.get(f"rag_{language}", self.templates["rag_en"])
         template = self.env.from_string(template_str)
         return template.render(chunks=chunks, question=self.sanitize_input(question))
 
-    def build_system_prompt(self, base_prompt: str, tenant_prompt: str = "", collection_prompt: str = "") -> str:
+    def build_system_prompt(
+        self, base_prompt: str, tenant_prompt: str = "", collection_prompt: str = ""
+    ) -> str:
         """Combine platform, tenant, and collection specific instructions."""
         parts = [base_prompt.strip()]
         if tenant_prompt:
@@ -61,9 +66,10 @@ USER QUESTION: {{ question }}
         In a real scenario, you might run an LLM classifier or a library like Rebuff to detect injections.
         Here we do simple sanitization.
         """
-        # Basic removal of markdown code block markers if they shouldn't be there, 
+        # Basic removal of markdown code block markers if they shouldn't be there,
         # or escaping system prompt instruction keywords.
         sanitized = text.replace("<|system|>", "").replace("<|user|>", "")
         return sanitized
+
 
 prompt_manager = PromptManager()

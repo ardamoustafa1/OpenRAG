@@ -1,9 +1,10 @@
-from fastapi import HTTPException
-from app.models.tenant import Tenant
 import httpx
 import structlog
 
+from app.models.tenant import Tenant
+
 logger = structlog.get_logger()
+
 
 class ModelManager:
     """
@@ -37,10 +38,11 @@ class ModelManager:
             async with httpx.AsyncClient() as client:
                 await client.post(
                     "http://ollama:11434/api/generate",
-                    json={"model": model_name, "keep_alive": "5m"}
+                    json={"model": model_name, "keep_alive": "5m"},
                 )
             logger.info(f"Preloaded Ollama model: {model_name}")
         except Exception as e:
             logger.error(f"Failed to preload model {model_name}", error=str(e))
+
 
 model_manager = ModelManager()

@@ -1,8 +1,10 @@
 import json
 from typing import AsyncGenerator
+
+import structlog
+
 from app.llm.client import llm_client
 from app.rag.prompt_manager import prompt_manager
-import structlog
 
 logger = structlog.get_logger()
 
@@ -14,6 +16,7 @@ Rules:
 3. For every claim you make, you MUST cite the source inline like this: [Source: Document Name, Section: Section].
 4. Interpret the context to help the user, but NEVER hallucinate or invent information.
 """
+
 
 class GenerationService:
     """
@@ -31,7 +34,7 @@ class GenerationService:
         context_string: str,
         tenant_settings: dict,
         tenant_id: str,
-        sources: list[dict]
+        sources: list[dict],
     ) -> AsyncGenerator[str, None]:
         """
         Generates Server-Sent Events (SSE) stream.
@@ -41,32 +44,31 @@ class GenerationService:
         system_content = self.build_system_prompt(tenant_settings)
         if context_string:
             system_content += f"\n\nCONTEXT:\n{context_string}"
-            
+
         # 2. Inject system prompt at the beginning
         final_messages = [{"role": "system", "content": system_content}] + messages
-        
+
         # 3. Stream from LLM
         try:
             generator = llm_client.astream_chat(
-                model=model,
-                messages=final_messages,
-                tenant_id=tenant_id
+                model=model, messages=final_messages, tenant_id=tenant_id
             )
-            
+
             async for chunk_text in generator:
                 payload = {"type": "token", "content": chunk_text}
                 yield f"data: {json.dumps(payload)}\n\n"
-                
+
             # 4. Stream sources at the end
             sources_payload = {"type": "sources", "sources": sources}
             yield f"data: {json.dumps(sources_payload)}\n\n"
-            
+
             # 5. Done marker
             yield "data: [DONE]\n\n"
-            
+
         except Exception as e:
             logger.error("Error during SSE stream generation", error=str(e))
             yield f"data: {json.dumps({'type': 'error', 'content': 'Generation failed.'})}\n\n"
             yield "data: [DONE]\n\n"
+
 
 generation_service = GenerationService()

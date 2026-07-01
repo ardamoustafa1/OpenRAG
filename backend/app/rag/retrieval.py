@@ -1,13 +1,14 @@
 import asyncio
-from typing import List, Dict, Any
 from collections import defaultdict
-from app.rag.bm25_serializer import BM25Serializer
+from typing import Any, Dict, List
+
+import structlog
 from redis.asyncio import Redis
 
-from app.rag.vector_store import vector_store
-from app.rag.query_understanding import query_understanding
 from app.core.config import settings
-import structlog
+from app.rag.bm25_serializer import BM25Serializer
+from app.rag.query_understanding import query_understanding
+from app.rag.vector_store import vector_store
 
 logger = structlog.get_logger()
 
@@ -26,6 +27,7 @@ class HybridRetriever:
     def __init__(self, top_k: int = 50, rrf_k: int = 60):
         self.top_k = top_k
         self.rrf_k = rrf_k
+        self.redis_client = Redis.from_url(settings.REDIS_URL)
 
     async def retrieve(
         self,
@@ -108,7 +110,9 @@ class HybridRetriever:
             limit=self.top_k,
             with_payload=True,
         )
-        return [{"id": hit.id, "score": hit.score, "payload": hit.payload} for hit in hits]
+        return [
+            {"id": hit.id, "score": hit.score, "payload": hit.payload} for hit in hits
+        ]
 
     async def _sparse_search(
         self,
@@ -123,43 +127,40 @@ class HybridRetriever:
         document ingestion and refreshed on-demand.
         Falls back to empty list if the index is not yet available.
         """
-        redis = Redis.from_url(settings.REDIS_URL)
-        try:
-            cache_key = f"bm25:{collection_name}"
-            cached = await redis.get(cache_key)
-            if not cached:
-                logger.info(
-                    "BM25 index not yet available for collection — skipping sparse",
-                    collection=collection_name,
+        cache_key = f"bm25:{collection_name}"
+        cached = await self.redis_client.get(cache_key)
+        if not cached:
+            logger.info(
+                "BM25 index not yet available for collection — skipping sparse",
+                collection=collection_name,
+            )
+            return []
+
+        # Deserialize using safe JSON deserialization
+        cache_payload = BM25Serializer.from_json(cached)
+        bm25 = cache_payload["model"]
+        mapping: list[dict] = cache_payload["mapping"]
+
+        tokenized_query = query.lower().split()
+        scores = bm25.get_scores(tokenized_query)
+
+        # Sort by BM25 score descending and take top_k
+        ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)[
+            : self.top_k
+        ]
+
+        results = []
+        for idx, score in ranked:
+            if idx < len(mapping) and score > 0:
+                entry = mapping[idx]
+                results.append(
+                    {
+                        "id": entry["id"],
+                        "score": float(score),
+                        "payload": entry.get("payload", {}),
+                    }
                 )
-                return []
-
-            # Deserialize using safe JSON deserialization
-            cache_payload = BM25Serializer.from_json(cached)
-            bm25 = cache_payload["model"]
-            mapping: list[dict] = cache_payload["mapping"]
-
-            tokenized_query = query.lower().split()
-            scores = bm25.get_scores(tokenized_query)
-
-            # Sort by BM25 score descending and take top_k
-            ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)[: self.top_k]
-
-            results = []
-            for idx, score in ranked:
-                if idx < len(mapping) and score > 0:
-                    entry = mapping[idx]
-                    results.append(
-                        {
-                            "id": entry["id"],
-                            "score": float(score),
-                            "payload": entry.get("payload", {}),
-                        }
-                    )
-            return results
-
-        finally:
-            await redis.aclose()
+        return results
 
     # ─── Fusion & Ranking ──────────────────────────────────────────────────────
 
@@ -196,7 +197,7 @@ class HybridRetriever:
         a 20% multiplicative boost to their RRF score, surfacing recent
         knowledge above older but semantically similar content.
         """
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
 
         cutoff = datetime.now(timezone.utc) - timedelta(days=30)
 

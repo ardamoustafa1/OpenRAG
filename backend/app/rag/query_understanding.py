@@ -1,9 +1,11 @@
 import langdetect
 import numpy as np
-from app.llm.client import llm_client
 import structlog
 
+from app.llm.client import llm_client
+
 logger = structlog.get_logger()
+
 
 class QueryUnderstandingService:
     """
@@ -18,16 +20,18 @@ class QueryUnderstandingService:
         except Exception:
             return "unknown"
 
-    async def generate_hyde_embedding(self, query: str, tenant_id: str, use_hyde: bool = True) -> list[float]:
+    async def generate_hyde_embedding(
+        self, query: str, tenant_id: str, use_hyde: bool = True
+    ) -> list[float]:
         """
         Generates an embedding for the query. If HyDE is enabled, it generates a hypothetical answer,
         embeds it, and averages it with the query embedding.
         """
         # Step 1: Embed the original query
         query_embedding = await llm_client.aembed(
-            model="bge-m3", # Standard embedding model
+            model="bge-m3",  # Standard embedding model
             input_text=query,
-            tenant_id=tenant_id
+            tenant_id=tenant_id,
         )
 
         if not use_hyde:
@@ -37,36 +41,37 @@ class QueryUnderstandingService:
         try:
             prompt = f"Please write a passage that answers the following question. Do not include introductory filler.\nQuestion: {query}\nAnswer:"
             messages = [{"role": "user", "content": prompt}]
-            
+
             # Use a fast, lightweight model for HyDE (e.g., phi-4-mini)
             response = await llm_client.achat(
                 model="phi-4-mini",
                 messages=messages,
                 tenant_id=tenant_id,
                 temperature=0.7,
-                max_tokens=256
+                max_tokens=256,
             )
-            
+
             hypothetical_doc = response.choices[0].message.content
-            
+
             # Step 3: Embed the hypothetical document
             doc_embedding = await llm_client.aembed(
-                model="bge-m3",
-                input_text=hypothetical_doc,
-                tenant_id=tenant_id
+                model="bge-m3", input_text=hypothetical_doc, tenant_id=tenant_id
             )
-            
+
             # Step 4: Combine (Weighted Average)
             q_vec = np.array(query_embedding, dtype=np.float32)
             d_vec = np.array(doc_embedding, dtype=np.float32)
-            
+
             # We weight the actual query slightly higher than the hallucinated document
             combined = (0.6 * q_vec) + (0.4 * d_vec)
-            
+
             return self._normalize(combined.tolist())
 
         except Exception as e:
-            logger.warning("HyDE generation failed, falling back to standard query embedding", error=str(e))
+            logger.warning(
+                "HyDE generation failed, falling back to standard query embedding",
+                error=str(e),
+            )
             return self._normalize(query_embedding)
 
     def _normalize(self, vector: list[float]) -> list[float]:
@@ -84,5 +89,6 @@ class QueryUnderstandingService:
         """
         # Simplified placeholder for intent classification
         return "question"
+
 
 query_understanding = QueryUnderstandingService()
