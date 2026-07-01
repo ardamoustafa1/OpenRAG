@@ -1,8 +1,14 @@
 import uuid
+from typing import Any
 
 import structlog
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import (
+    Distance,
+    PayloadSchemaType,
+    PointStruct,
+    VectorParams,
+)
 
 from app.core.config import settings
 
@@ -14,7 +20,7 @@ class VectorStoreService:
     Qdrant integration for tenant-isolated vector storage.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.client = AsyncQdrantClient(
             url=f"http://{settings.QDRANT_HOST}:{settings.QDRANT_PORT}",
             check_compatibility=False,
@@ -27,7 +33,7 @@ class VectorStoreService:
 
     async def ensure_collection(
         self, tenant_id: str, collection_id: str, vector_size: int = 1024
-    ):
+    ) -> None:
         """Creates the collection if it doesn't exist."""
         col_name = self._collection_name(tenant_id, collection_id)
         try:
@@ -43,16 +49,27 @@ class VectorStoreService:
                 await self.client.create_payload_index(
                     collection_name=col_name,
                     field_name="document_id",
-                    field_schema="keyword",
+                    field_schema=PayloadSchemaType.KEYWORD,
                 )
                 logger.info("Created Qdrant collection", collection_name=col_name)
         except Exception as e:
             logger.error("Failed to ensure Qdrant collection", error=str(e))
             raise
 
+    async def delete_collection(self, tenant_id: str, collection_id: str) -> None:
+        """Deletes a collection from Qdrant."""
+        col_name = self._collection_name(tenant_id, collection_id)
+        try:
+            if await self.client.collection_exists(col_name):
+                await self.client.delete_collection(collection_name=col_name)
+                logger.info("Deleted Qdrant collection", collection_name=col_name)
+        except Exception as e:
+            logger.error("Failed to delete Qdrant collection", error=str(e))
+            raise
+
     async def upsert_chunks(
-        self, tenant_id: str, collection_id: str, chunks: list[dict]
-    ):
+        self, tenant_id: str, collection_id: str, chunks: list[dict[str, Any]]
+    ) -> None:
         """Uploads a batch of chunks to the specific tenant collection."""
         if not chunks:
             return
@@ -86,7 +103,7 @@ class VectorStoreService:
 
     async def delete_by_document(
         self, tenant_id: str, collection_id: str, document_id: str
-    ):
+    ) -> None:
         """Deletes all chunks belonging to a specific document."""
         col_name = self._collection_name(tenant_id, collection_id)
         try:
