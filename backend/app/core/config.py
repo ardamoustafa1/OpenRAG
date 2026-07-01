@@ -156,4 +156,4 @@ class Settings(BaseSettings):
 
 
 # Create a global instance of settings
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]
