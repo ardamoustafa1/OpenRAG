@@ -1,3 +1,5 @@
+from typing import Any
+
 import pybreaker
 import structlog
 
@@ -5,7 +7,7 @@ logger = structlog.get_logger()
 
 
 class CircuitBreakerListener(pybreaker.CircuitBreakerListener):
-    def state_change(self, cb, old_state, new_state):
+    def state_change(self, cb: Any, old_state: Any, new_state: Any) -> None:
         logger.warning(
             "Circuit Breaker state changed",
             breaker_name=cb.name,
