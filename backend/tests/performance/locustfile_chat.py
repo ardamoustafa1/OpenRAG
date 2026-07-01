@@ -1,15 +1,17 @@
-from locust import HttpUser, task, between
 import os
 
+from locust import HttpUser, between, task
+
+
 class ChatUser(HttpUser):
-    wait_time = between(5, 30) # Wait 5-30 seconds between queries
-    
+    wait_time = between(5, 30)  # Wait 5-30 seconds between queries
+
     def on_start(self):
         # In a real scenario, fetch a JWT for the user here.
         self.api_key = os.getenv("TEST_API_KEY", "mock-token")
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
     @task
@@ -17,10 +19,12 @@ class ChatUser(HttpUser):
         payload = {
             "query": "What is the policy regarding remote work?",
             "collections": ["default"],
-            "stream": False
+            "stream": False,
         }
-        
-        with self.client.post("/api/v1/chat", json=payload, headers=self.headers, catch_response=True) as response:
+
+        with self.client.post(
+            "/api/v1/chat", json=payload, headers=self.headers, catch_response=True
+        ) as response:
             if response.status_code == 200:
                 response.success()
             elif response.status_code == 429:

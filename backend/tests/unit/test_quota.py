@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+
 
 # Mocking a quota service
 class QuotaService:
@@ -11,20 +13,22 @@ class QuotaService:
         current = await self.redis.incr(f"quota:{tenant_id}")
         return current <= self.LIMIT
 
+
 @pytest.mark.asyncio
 async def test_quota_under_limit():
     mock_redis = AsyncMock()
     mock_redis.incr.return_value = 50
-    
+
     service = QuotaService(mock_redis)
     is_allowed = await service.increment_and_check("tenant-1")
     assert is_allowed is True
+
 
 @pytest.mark.asyncio
 async def test_quota_over_limit():
     mock_redis = AsyncMock()
     mock_redis.incr.return_value = 101
-    
+
     service = QuotaService(mock_redis)
     is_allowed = await service.increment_and_check("tenant-1")
     assert is_allowed is False

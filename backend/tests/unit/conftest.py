@@ -1,13 +1,18 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from app.models.user import User
-from app.models.tenant import Tenant
 import uuid
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from app.models.tenant import Tenant
+from app.models.user import User
+
 
 @pytest.fixture
 def mock_db_session():
     """Provides a mocked AsyncSession for database operations without a real DB."""
     session = AsyncMock()
+    session.add = MagicMock()
     # Support basic queries like session.execute(stmt).scalars().first()
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -16,6 +21,7 @@ def mock_db_session():
     mock_result.scalars.return_value = mock_scalars
     session.execute.return_value = mock_result
     return session
+
 
 @pytest.fixture
 def mock_redis():
@@ -26,6 +32,7 @@ def mock_redis():
     redis.delete.return_value = 1
     return redis
 
+
 @pytest.fixture
 def mock_current_user():
     """Provides a default user object."""
@@ -35,8 +42,11 @@ def mock_current_user():
         name="Test User",
         role="user",
         is_active=True,
-        tenant_id=uuid.uuid4()
+        tenant_id=uuid.uuid4(),
+        mfa_enabled=False,
+        created_at=datetime.now(UTC),
     )
+
 
 @pytest.fixture
 def mock_current_tenant():
@@ -44,6 +54,7 @@ def mock_current_tenant():
     return Tenant(
         id=uuid.uuid4(),
         name="Test Tenant",
-        subdomain="test",
-        settings={}
+        slug="test",
+        settings={},
+        is_active=True,
     )

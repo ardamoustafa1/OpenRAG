@@ -1,5 +1,5 @@
 [project]
-name = "OpenRAG-platform"
+name = "OpenRAG"
 version = "0.1.0"
 description = "Multi-tenant completely on-premise RAG-based AI platform."
 readme = "README.md"
@@ -39,7 +39,9 @@ dependencies = [
     "slowapi>=0.1.9",
     "passlib[argon2]>=1.7.4",
     "argon2-cffi>=23.1.0",
-    "python-jose[cryptography]>=3.3.0",
+    # TODO: Migrate from python-jose to PyJWT (python-jose is unmaintained as of 2024)
+    # Tracking issue: https://github.com/ardamoustafa1/OpenRAG/issues
+    "PyJWT[crypto]>=2.8.0",
     "python-multipart>=0.0.9",
     "pyotp>=2.9.0",
     "qrcode>=7.4.2",
@@ -88,7 +90,11 @@ select = [
     "C",  # flake8-comprehensions
     "B",  # flake8-bugbear
 ]
-ignore = []
+ignore = [
+    "B008",  # FastAPI uses Depends(...) in function defaults by design.
+    "C901",  # Track high-complexity refactors separately from lint health.
+    "E501",  # Black is the source of truth for line wrapping.
+]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -97,6 +103,7 @@ testpaths = [
     "tests",
 ]
 asyncio_mode = "auto"
+pythonpath = "."
 
 [tool.mypy]
 python_version = "3.12"
