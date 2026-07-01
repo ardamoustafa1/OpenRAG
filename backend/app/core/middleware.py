@@ -1,5 +1,5 @@
 import uuid
-from typing import Callable
+from typing import Any, Callable
 
 import structlog
 from fastapi import Request, Response
@@ -19,7 +19,7 @@ async def log_audit_event_async(
     tenant_id: uuid.UUID | None,
     ip_address: str | None,
     user_agent: str | None,
-):
+) -> None:
     async with async_session_factory() as db:
         try:
             log_entry = AuditLog(
@@ -45,7 +45,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     Middleware to add standard security headers to every response.
     """
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Any]
+    ) -> Response:
         response = await call_next(request)
         response.headers["Strict-Transport-Security"] = (
             "max-age=31536000; includeSubDomains"
@@ -57,7 +59,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; connect-src 'self' http://localhost:* ws://localhost:*; script-src 'self'; style-src 'self' 'unsafe-inline'"
         )
-        return response
+        return response  # type: ignore[no-any-return]
 
 
 class TenantMiddleware(BaseHTTPMiddleware):
@@ -67,13 +69,15 @@ class TenantMiddleware(BaseHTTPMiddleware):
     We set it in request.state so dependencies can easily read it.
     """
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Any]
+    ) -> Response:
         tenant_id = request.headers.get("X-Tenant-ID")
         # Alternative: extract from host like request.client.host
         request.state.tenant_id = tenant_id
 
         response = await call_next(request)
-        return response
+        return response  # type: ignore[no-any-return]
 
 
 class AuditMiddleware(BaseHTTPMiddleware):
@@ -83,7 +87,9 @@ class AuditMiddleware(BaseHTTPMiddleware):
     to avoid delaying the HTTP response, but for demonstration, we'll log it directly if applicable.
     """
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Any]
+    ) -> Response:
         response = await call_next(request)
 
         if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
@@ -104,4 +110,4 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 ip_address=ip_address,
                 user_agent=user_agent,
             )
-        return response
+        return response  # type: ignore[no-any-return]
