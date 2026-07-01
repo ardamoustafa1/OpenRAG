@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db_session
 from app.core.dependencies import get_current_tenant, get_current_user
-from app.core.security import create_api_key
+from app.core.security import generate_api_key
 from app.models.tenant import Tenant
 from app.models.user import ApiKey, User
 from app.schemas.api_keys import (
@@ -38,7 +38,7 @@ async def create_new_api_key(
     tenant: Tenant = Depends(get_current_tenant),
 ) -> Any:
     """Produce a new API Key. The raw key is returned only once."""
-    raw_key, key_hash, key_prefix = create_api_key()
+    raw_key, key_prefix, key_hash = generate_api_key()
 
     new_key = ApiKey(
         tenant_id=tenant.id,
@@ -55,7 +55,7 @@ async def create_new_api_key(
 
     # Return a dict so we can inject the raw_key just this once
     response_data = new_key.to_dict()
-    response_data["raw_key"] = f"{key_prefix}.{raw_key}"
+    response_data["raw_key"] = raw_key
 
     return response_data
 
